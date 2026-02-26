@@ -12,6 +12,7 @@ workflow PROFILING {
 
     main:
     ch_versions = Channel.empty()
+    ch_multiqc_files = Channel.empty()
     ch_raw_classifications = Channel.empty()
     ch_raw_profiles = Channel.empty()
     ch_krona_html = Channel.empty()
@@ -68,13 +69,19 @@ if (params.run_centrifuge) {
     ch_centrifuge_report  = CENTRIFUGE_CENTRIFUGE.out.report
     ch_centrifuge_results = CENTRIFUGE_CENTRIFUGE.out.results
     ch_versions = ch_versions.mix(CENTRIFUGE_CENTRIFUGE.out.versions)
+    ch_multiqc_files = ch_multiqc_files.mix(CENTRIFUGE_CENTRIFUGE.out.report)
     ch_raw_classifications = ch_raw_classifications.mix(CENTRIFUGE_CENTRIFUGE.out.results)
 
     CENTRIFUGE_KREPORT(
         CENTRIFUGE_CENTRIFUGE.out.results,
         ch_centrifuge_db.first()
     )
+    ch_versions = ch_versions.mix( CENTRIFUGE_KREPORT.out.versions.first() )
+    ch_raw_profiles = ch_raw_profiles.mix( CENTRIFUGE_KREPORT.out.kreport )
+    ch_multiqc_files = ch_multiqc_files.mix( CENTRIFUGE_KREPORT.out.kreport )
 
+
+    
     KRONA_CENTRIFUGE(
         CENTRIFUGE_KREPORT.out.kreport.map { meta, txt -> 
             def new_meta = meta + [tool: 'centrifuge']
@@ -90,6 +97,7 @@ if (params.run_centrifuge) {
     raw_classifications = ch_raw_classifications
     raw_profiles = ch_raw_profiles
     versions = ch_versions
+    multiqc_files = ch_multiqc_files
     krona_html = ch_krona_html
     centrifuge_report = ch_centrifuge_report
     centrifuge_results = ch_centrifuge_results

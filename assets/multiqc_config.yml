@@ -13,3 +13,31 @@ report_section_order:
 export_plots: true
 
 disable_version_detection: true
+
+# Define how MultiQC finds filtlong log files
+sp:
+  filtlong:
+    fn: "*_filtered.log"
+    contents: "Scoring long reads"
+    contents_re: " "
+extra_fn_clean_exts:
+  - "_filtered"
+  - ".assembly"
+  - "_null_raw"
+  - "_null"
+
+
+  
+# Set the display order for filtlong section
+report_section_order:
+  filtlong:
+    order: 350
+
+section_names:
+  kraken: 'Centrifuge Taxonomic Classification'
+
+module_order:
+  - kraken:
+      name: 'Centrifuge'
+
+

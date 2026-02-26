@@ -155,8 +155,12 @@ workflow METAAMR {
 
         ch_versions = ch_versions.mix(PORECHOP_PORECHOP.out.versions.first())
         ch_versions = ch_versions.mix(FILTLONG.out.versions.first())
+        ch_multiqc_files = ch_multiqc_files.mix(
+            FILTLONG.out.log
+                .map { meta, log -> log }
+                .ifEmpty([])
+        )
         ch_multiqc_files = ch_multiqc_files.mix( PORECHOP_PORECHOP.out.log.map{ it[1] } )
-        ch_multiqc_files = ch_multiqc_files.mix( FILTLONG.out.log.map{ it[1] } )
     } else {
         ch_processed_reads = ch_samplesheet
     }
@@ -176,14 +180,16 @@ workflow METAAMR {
     }
 
     /*
-        SUBWORKFLOW: ASSEMBLY
+    SUBWORKFLOW: ASSEMBLY
     */
-    
+
     if ( params.perform_assembly) {
         ch_assembly = META_ASSEMBLY(ch_hostremoved).ch_assembly   
         ch_versions = ch_versions.mix(META_ASSEMBLY.out.ch_versions)
+        ch_quast = META_ASSEMBLY.out.quast_results 
     } else {
         ch_assembly = ch_hostremoved
+        ch_quast = Channel.empty()
     }
 
    // Polish assembly (only one round)
@@ -250,6 +256,7 @@ workflow METAAMR {
         )
     
         ch_versions = ch_versions.mix(ABRICATE_RUN.out.versions)
+        ch_multiqc_files = ch_multiqc_files.mix(ABRICATE_RUN.out.report.map { meta, report -> report })
         ABRICATE_RUN.out.report.view { meta, report -> 
             "Abricate outputs for ${meta.id}: ${report.getName()}"
         }
@@ -371,7 +378,6 @@ workflow METAAMR {
             ch_rgi_results
         )
         ch_versions = ch_versions.mix(HAMRONIZATION.out.versions.ifEmpty([]))
-        ch_multiqc_files = ch_multiqc_files.mix(HAMRONIZATION.out.summary.collect{it[1]}.ifEmpty([]))
     } else {
         log.info "Skipping HAMRONIZATION: Either fewer than two AMR tools are active or run_hamronization is set to false."
     }
@@ -401,7 +407,8 @@ workflow METAAMR {
     )
 
     ch_versions = ch_versions.mix(PROFILING.out.versions)
-    ch_multiqc_files = ch_multiqc_files.mix(PROFILING.out.raw_profiles.collect { it[1] }.ifEmpty([]))
+    ch_multiqc_files = ch_multiqc_files.mix(PROFILING.out.multiqc_files.map { it[1] }.ifEmpty([]))
+    
 
     COMBINE_CONTIGS_AND_SPECIES(
         PROFILING.out.centrifuge_results.join(PROFILING.out.centrifuge_report)
@@ -546,7 +553,10 @@ workflow METAAMR {
     if (params.perform_hostremoval) {
         ch_multiqc_files = ch_multiqc_files.mix(READS_HOSTREMOVAL.out.mqc.collect{it[1]}.ifEmpty([]))
     }
-
+    if (params.perform_assembly) {
+        ch_multiqc_files = ch_multiqc_files.mix(ch_quast.collect{it[1]}.ifEmpty([]))
+    }
+    
     MULTIQC (
         ch_multiqc_files.collect(),
         ch_multiqc_config.toList(),

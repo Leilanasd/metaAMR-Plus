@@ -28,6 +28,7 @@ workflow META_ASSEMBLY {
 
     emit:
     ch_assembly  
-    ch_versions      
+    ch_versions
+    quast_results = QUAST.out.results      
     
 }
