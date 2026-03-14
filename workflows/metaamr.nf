@@ -108,6 +108,33 @@ workflow METAAMR {
     
 
     main:
+    /*
+ * Validate assembly requirements
+ * Some tools require assembled contigs
+ */
+    def assembly_required = (
+        params.run_rgi ||
+        params.run_amrfinderplus ||
+        params.run_abricate ||
+        params.run_plasmidfinder ||
+        params.run_plasclass
+    )
+
+    if (assembly_required && !params.perform_assembly) {
+        error """
+        Selected tool(s) require assembled contigs, but --perform_assembly was not enabled.
+
+        Please rerun the pipeline with:
+            --perform_assembly
+
+        Tools requiring assembly:
+            RGI
+            AMRFinderPlus
+            Abricate
+            PlasmidFinder
+            PlasClass
+        """
+    }
 
     ch_versions = Channel.empty()
     ch_multiqc_files = Channel.empty()
@@ -122,7 +149,7 @@ workflow METAAMR {
     // MODULE: Run FastQC
     //
     if (params.run_fastqc) {
-        FASTQC (
+        FASTQC(
             ch_samplesheet
         )
         ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
