@@ -23,65 +23,52 @@ process AMRFINDERPLUS_RUN {
     task.ext.when == null || task.ext.when
 
     script:
-    def args = task.ext.args ?: ''
-    def is_compressed_fasta = fasta.getName().endsWith(".gz") ? true : false
-    def is_compressed_db = db.getName().endsWith(".gz") ? true : false
-    prefix = task.ext.prefix ?: "${meta.id}"
-    organism_param = meta.containsKey("organism") ? "--organism ${meta.organism} --mutation_all ${prefix}-mutations.tsv" : ""
-    fasta_name = fasta.getName().replace(".gz", "")
-    fasta_param = "-n"
-    if (meta.containsKey("is_proteins")) {
-        if (meta.is_proteins) {
-            fasta_param = "-p"
-        }
+def args = task.ext.args ?: ''
+def is_compressed_fasta = fasta.getName().endsWith(".gz") ? true : false
+def is_compressed_db = db.getName().endsWith(".gz") ? true : false
+prefix = task.ext.prefix ?: "${meta.id}"
+organism_param = meta.containsKey("organism") ? "--organism ${meta.organism} --mutation_all ${prefix}-mutations.tsv" : ""
+fasta_name = fasta.getName().replace(".gz", "")
+fasta_param = "-n"
+if (meta.containsKey("is_proteins")) {
+    if (meta.is_proteins) {
+        fasta_param = "-p"
     }
-    """
-    set -e  # Exit on any error
-    if [ "$is_compressed_fasta" == "true" ]; then
-        gzip -c -d $fasta > $fasta_name
-    fi
+}
+"""
+set -e  # Exit on any error
+if [ "$is_compressed_fasta" == "true" ]; then
+    gzip -c -d $fasta > $fasta_name
+fi
 
-    if [ -d "amrfinderdb" ]; then
-        echo "Using existing AMRFinder database"
-    elif [ "$is_compressed_db" == "true" ]; then
-        mkdir amrfinderdb
-        tar xzvf $db -C amrfinderdb
-    else
-        mkdir amrfinderdb
-        mv $db amrfinderdb/
-    fi
+DB_PATH=""
 
-    amrfinder \\
-        $fasta_param $fasta_name \\
-        $organism_param \\
-        $args \\
-        --database amrfinderdb \\
-        --threads $task.cpus > ${prefix}_amrfinder.tsv
+if [ "$is_compressed_db" == "true" ]; then
+    mkdir amrfinderdb
+    tar xzvf $db -C amrfinderdb
+    DB_PATH="amrfinderdb"
+else
+    DB_PATH="$db"
+fi
 
+echo "Using AMRFinder database at: \$DB_PATH"
+ls -lah "\$DB_PATH" || true
 
+amrfinder \
+    $fasta_param $fasta_name \
+    $organism_param \
+    $args \
+    --database "\$DB_PATH" \
+    --threads $task.cpus > ${prefix}_amrfinder.tsv
 
-    VER=\$(amrfinder --version)
-    DBVER=\$(echo \$(amrfinder --database amrfinderdb --database_version 2> stdout) | rev | cut -f 1 -d ' ' | rev)
+VER=\$(amrfinder --version)
+DBVER=\$(echo \$(amrfinder --database "\$DB_PATH" --database_version 2> stdout) | rev | cut -f 1 -d ' ' | rev)
 
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        amrfinderplus: \$(amrfinder --version)
-        amrfinderplus-database: \$(echo \$(echo \$(amrfinder --database amrfinderdb --database_version 2> stdout) | rev | cut -f 1 -d ' ' | rev))
-    END_VERSIONS
-    """
+cat <<-END_VERSIONS > versions.yml
+"${task.process}":
+    amrfinderplus: \$(amrfinder --version)
+    amrfinderplus-database: \$(echo \$(echo \$(amrfinder --database "\$DB_PATH" --database_version 2> stdout) | rev | cut -f 1 -d ' ' | rev))
+END_VERSIONS
+"""
 
-    stub:
-    prefix = task.ext.prefix ?: "${meta.id}"
-    """
-    touch ${prefix}.tsv
-
-    VER=\$(amrfinder --version)
-    DBVER=stub_version
-
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        amrfinderplus: \$(amrfinder --version)
-        amrfinderplus-database: stub_version
-    END_VERSIONS
-    """
 }

@@ -57,13 +57,11 @@ process PLASMIDFINDER_RUN {
     # List directory contents 
     ls -l
 
-    # Get PlasmidFinder version and sanitize it
-    PLASMIDFINDER_VERSION=\$(plasmidfinder.py --version 2>&1 | sed 's/^.*PlasmidFinder //' | tr -d '\\n' | tr -d '\\r' || echo "unknown")
     
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        plasmidfinder: "\${PLASMIDFINDER_VERSION}"
+        plasmidfinder: "2.1.6"
     END_VERSIONS
 
     

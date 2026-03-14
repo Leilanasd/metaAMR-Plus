@@ -39,7 +39,7 @@ process PLASCLASS {
     # Save version information
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        plasclass: \$(classify_fasta.py --version 2>&1 | grep -oP 'PlasClass \\K[0-9]+\\.[0-9]+\\.[0-9]+' || echo "unknown")
+        plasclass: \$(classify_fasta.py --version 2>&1 | grep -oP 'PlasClass \\K[0-9]+\\.[0-9]+\\.[0-9]+' || echo "0.1.1")
     END_VERSIONS
     """
 }

@@ -85,7 +85,6 @@ include {READS_HOSTREMOVAL       } from '../subworkflows/local/HOSTREMOVAL'
 include {META_ASSEMBLY      } from '../subworkflows/local/ASSEMBLY'
 include {POLISH_ASSEMBLY    } from '../subworkflows/local/POLISH_ASSEMBLY'
 include { PREPARE_TOOL_DBS } from './prepare_tool_dbs'
-include { EXTRACT_RGI_DB } from   '../modules/local/EXTRACT_RGI_DB'
 include { HAMRONIZATION } from '../subworkflows/local/HAMRONIZATION'
 include { VALIDATE_FASTA } from '../modules/local/validate_fasta'
 include { PLASCLASS } from '../modules/local/plasclass'
@@ -95,8 +94,6 @@ include { FILTER_READS_BY_SPECIES } from '../modules/local/filter_reads_by_speci
 include { EXTRACT_FILTERED_READS } from '../modules/local/extract_filtered_reads'
 include { RESFINDER_WITH_SPECIES } from '../modules/local/resfinder_with_species'
 include { COMBINE_CONTIGS_AND_SPECIES } from '../modules/local/combine_contigs_and_species'
-include { RESFINDER_POSTPROCESS } from '../modules/local/resfinder_postprocess'
-include { MERGE_TOOL_TABLES} from '../modules/local/merge_tools_tables'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -120,14 +117,7 @@ workflow METAAMR {
     // Prepare tool-specific databases
     PREPARE_TOOL_DBS()
     
-    def ch_rgi_db_extracted = PREPARE_TOOL_DBS.out.rgi_db.branch {
-        compressed: it.toString().endsWith('.tar.gz')
-        ready: true
-    }
-    
-    EXTRACT_RGI_DB(ch_rgi_db_extracted.compressed)
-    def ch_rgi_db_final = ch_rgi_db_extracted.ready.mix(EXTRACT_RGI_DB.out.rgi_db).first()
-    
+    def ch_rgi_db_final = PREPARE_TOOL_DBS.out.rgi_db
     //
     // MODULE: Run FastQC
     //
@@ -451,59 +441,6 @@ workflow METAAMR {
 }
 
 
-
-
-
-    if (params.run_summar && params.run_resfinder) {
-        RESFINDER_POSTPROCESS(RESFINDER_RUN.out.table)
-    
-    // Extract sample_id + dir from ResFinder POSTPROCESSED summary
-        ch_resfinder_summary_results = RESFINDER_POSTPROCESS.out.summary.map { meta, summary_file ->
-        // The file is named correctly: ${meta.id}_resfinder_summary.tsv
-            def sample_id = meta.id.toLowerCase().trim()
-            tuple(sample_id, summary_file.parent)
-        }
-    } else {
-        ch_resfinder_summary_results = Channel.empty()
-    }
-
-    
-
-
-     
-    // Extract sample_id + dir from PlasmidFinder results 
-    ch_plasmidfinder_results = params.run_plasmidfinder ? PLASMIDFINDER_RUN.out.tsv : Channel.empty()
-    ch_plasmidfinder_summary_results = params.run_plasmidfinder ? 
-        ch_plasmidfinder_results.map { meta, tsv_file ->
-            def sample_id = meta.id.toLowerCase().trim()
-            tuple(sample_id, tsv_file.parent)
-        } : Channel.empty()
-
-    // Extract sample_id + dir from Centrifuge summary
-    ch_centrifuge_summary_results = params.run_centrifuge ? ch_centrifuge_results.map { meta, files ->
-    // Find the specific file we need
-        def fileList = files instanceof List ? files : [files]
-        def targetFile = fileList.find { it.name.endsWith('_contigs_species.tsv') }
-        if (!targetFile) {
-            error "Could not find *_contigs_species.tsv file in: ${fileList}"
-        }
-        def sample_id = targetFile.baseName.replaceFirst(/_contigs_species$/, "").toLowerCase().trim()
-        tuple(sample_id, targetFile.parent)
-    } : Channel.empty()
-
-// Join both channels by sample_id and run MERGE
-    if (params.run_summar) {
-        ch_merge_inputs = ch_centrifuge_summary_results
-            .join(ch_resfinder_summary_results)
-            .join(ch_plasmidfinder_summary_results)
-            .map { sample_id, cent_dir, res_dir , plas_dir -> 
-                tuple(sample_id, cent_dir, res_dir, plas_dir)
-            }
-
-        ch_merge_inputs.view { "Merge input: $it" }
-
-        MERGE_TOOL_TABLES(ch_merge_inputs)
-    }
 
 
 

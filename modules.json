@@ -100,6 +100,11 @@
                         "git_sha": "666652151335353eef2fcd58880bcef5bc2928e1",
                         "installed_by": ["modules"]
                     },
+                    "kaiju/kaiju2table": {
+                        "branch": "master",
+                        "git_sha": "2ddcb4e4aa28aa06678b6689048d05a0d2af6a97",
+                        "installed_by": ["modules"]
+                    },
                     "kaiju/mergeoutputs": {
                         "branch": "master",
                         "git_sha": "666652151335353eef2fcd58880bcef5bc2928e1",

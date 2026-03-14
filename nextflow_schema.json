@@ -450,12 +450,6 @@
                     "default": "unknown",
                     "description": "Version of CARD database"
                 },
-                "run_summar": {
-                   "type": "boolean",
-                   "default": false,
-                   "description": "Run summary analysis",
-                   "fa_icon": "fas fa-chart-bar"
-                },
 
                 "target_species": {
                    "type": ["string", "null"],

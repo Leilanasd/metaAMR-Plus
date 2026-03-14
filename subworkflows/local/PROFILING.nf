@@ -1,4 +1,5 @@
 include { KAIJU_KAIJU } from '../../modules/nf-core/kaiju/kaiju/main'
+include { KAIJU_KAIJU2TABLE } from '../../modules/nf-core/kaiju/kaiju2table/main'
 include { CENTRIFUGE_CENTRIFUGE } from '../../modules/nf-core/centrifuge/centrifuge/main'
 include { CENTRIFUGE_KREPORT } from '../../modules/nf-core/centrifuge/kreport/main'
 include { KAIJU_KAIJU2KRONA } from '../../modules/nf-core/kaiju/kaiju2krona/main'
@@ -34,6 +35,18 @@ workflow PROFILING {
         )
         ch_versions = ch_versions.mix(KAIJU_KAIJU.out.versions)
         ch_raw_classifications = ch_raw_classifications.mix(KAIJU_KAIJU.out.results)
+        
+        // ADD KAIJU RESULTS TO MULTIQC
+        ch_multiqc_files = ch_multiqc_files.mix(KAIJU_KAIJU.out.results)
+        // Generate summary table for MultiQC
+        KAIJU_KAIJU2TABLE(
+            KAIJU_KAIJU.out.results,
+            ch_kaiju_db.first(),
+            params.kaiju_taxon_rank ?: 'species'  // or genus, phylum???????
+        )
+    
+        // Add the summary table to MultiQC
+        ch_multiqc_files = ch_multiqc_files.mix(KAIJU_KAIJU2TABLE.out.summary)
 
         KAIJU_KAIJU2KRONA(
             KAIJU_KAIJU.out.results,
@@ -51,11 +64,13 @@ workflow PROFILING {
     }
     
     
-    // Define these before the `if` block so they're always defined
+   
+    
+
+    //  Centrifuge
     ch_centrifuge_report  = Channel.empty()
     ch_centrifuge_results = Channel.empty()
 
-    //  Centrifuge
 if (params.run_centrifuge) {
     ch_centrifuge_db = databases_ch.filter { it[0].tool == 'centrifuge' }.map { it[1] }
     ch_centrifuge_input = ch_profiling_input.combine(ch_centrifuge_db)
@@ -90,6 +105,7 @@ if (params.run_centrifuge) {
     )
 
     ch_krona_html = ch_krona_html.mix(KRONA_CENTRIFUGE.out.html)
+    ch_versions = ch_versions.mix(KRONA_CENTRIFUGE.out.versions)
 }
    
     
