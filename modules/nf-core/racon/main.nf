@@ -1,9 +1,8 @@
 process RACON {
     tag "$meta.id"
-    
+
     errorStrategy { task.attempt <= 3 ? 'retry' : 'finish' }
     maxRetries 3
-
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -12,11 +11,10 @@ process RACON {
 
     input:
     tuple val(meta), path(reads), path(assembly), path(paf)
-    val racon_round
 
     output:
-    tuple val(meta), path("${meta.id}_racon${racon_round}_assembly.fasta.gz"), emit: improved_assembly
-    path "versions.yml"                                                      , emit: versions
+    tuple val(meta), path("${meta.id}_racon_assembly.fasta.gz"), emit: improved_assembly
+    path "versions.yml", emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -25,7 +23,6 @@ process RACON {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    
     echo "Input reads: $reads"
     echo "Input assembly: $assembly"
     echo "Input PAF: $paf"
@@ -36,18 +33,14 @@ process RACON {
         "$reads" \\
         "$paf" \\
         "$assembly" \\
-        > ${prefix}_racon${racon_round}_assembly.fasta
+        > ${prefix}_racon_assembly.fasta
 
-    
-    
-
-    if [ -f "${prefix}_racon${racon_round}_assembly.fasta" ]; then
-        gzip -f ${prefix}_racon${racon_round}_assembly.fasta
+    if [ -f "${prefix}_racon_assembly.fasta" ]; then
+        gzip -f ${prefix}_racon_assembly.fasta
     else
-        echo "Error: ${prefix}_racon${racon_round}_assembly.fasta was not created by RACON"
+        echo "Error: ${prefix}_racon_assembly.fasta was not created by RACON"
         exit 1
     fi
-
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

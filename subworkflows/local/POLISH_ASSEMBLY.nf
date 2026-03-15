@@ -1,10 +1,9 @@
-include { MINIMAP2_ALIGN as MINIMAP2_POLISH_1 } from '../../modules/nf-core/minimap2/align/main'
-include { RACON as RACON_1 } from '../../modules/nf-core/racon/main'
-
+include { MINIMAP2_ALIGN as MINIMAP2_POLISH } from '../../modules/nf-core/minimap2/align/main'
+include { RACON } from '../../modules/nf-core/racon/main'
 
 workflow POLISH_ASSEMBLY {
     take:
-    ch_input    
+    ch_input
 
     main:
     ch_versions = Channel.empty()
@@ -26,44 +25,44 @@ workflow POLISH_ASSEMBLY {
         return [meta, reads, final_assembly]
     }
 
-    // First Minimap2 alignment
-    MINIMAP2_POLISH_1(
+    // Minimap2 alignment for polishing
+    MINIMAP2_POLISH(
         ch_prepped_assembly.map { meta, reads, assembly -> [meta, reads] },
         ch_prepped_assembly.map { meta, reads, assembly -> assembly },
         false, true, false
     )
-    ch_versions = ch_versions.mix(MINIMAP2_POLISH_1.out.versions.first())
+    ch_versions = ch_versions.mix(MINIMAP2_POLISH.out.versions.first())
 
-    ch_minimap2_output = MINIMAP2_POLISH_1.out.paf
+    ch_minimap2_output = MINIMAP2_POLISH.out.paf
         .map { it -> sleep(100); it }
 
-    // Prepare input for Racon 1
-    ch_racon_input_1 = ch_prepped_assembly
+    // Prepare input for Racon
+    ch_racon_input = ch_prepped_assembly
         .join(ch_minimap2_output)
         .map { meta, reads, assembly, paf ->
             [meta, reads instanceof List ? reads[0] : reads, assembly, paf]
         }
 
     // Racon polishing
-    RACON_1(ch_racon_input_1, 1)
-    ch_versions = ch_versions.mix(RACON_1.out.versions)
+    RACON(ch_racon_input)
+    ch_versions = ch_versions.mix(RACON.out.versions)
 
-    ch_racon1_gzipped = RACON_1.out.improved_assembly.map { meta, racon1_fasta ->
-        println "Debug: Compressing Racon1 output for ${meta.id}"
-        def racon1_gz = file("${workDir}/${meta.id}.racon1.fasta.gz")
+    ch_racon_gzipped = RACON.out.improved_assembly.map { meta, racon_fasta ->
+        println "Debug: Compressing Racon output for ${meta.id}"
+        def racon_gz = file("${workDir}/${meta.id}.racon.fasta.gz")
 
-        if (!racon1_fasta.name.endsWith(".gz")) {
-            "gzip -c ${racon1_fasta} > ${racon1_gz}".execute().waitFor()
+        if (!racon_fasta.name.endsWith(".gz")) {
+            "gzip -c ${racon_fasta} > ${racon_gz}".execute().waitFor()
         } else {
-            racon1_fasta.copyTo(racon1_gz)
+            racon_fasta.copyTo(racon_gz)
         }
 
-        assert racon1_gz.exists() : "Racon1 output file ${racon1_gz.toAbsolutePath()} does not exist"
+        assert racon_gz.exists() : "Racon output file ${racon_gz.toAbsolutePath()} does not exist"
 
-        return [meta, racon1_gz]
+        return [meta, racon_gz]
     }
 
     emit:
-    polished_assembly_1 = ch_racon1_gzipped
+    polished_assembly_1 = ch_racon_gzipped
     versions            = ch_versions
 }

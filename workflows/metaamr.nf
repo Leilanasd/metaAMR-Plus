@@ -209,7 +209,7 @@ workflow METAAMR {
         ch_quast = Channel.empty()
     }
 
-   // Polish assembly (only one round)
+   // Polish assembly 
     if (params.perform_polish_assembly && params.perform_assembly) {
         ch_polish_input = ch_hostremoved.join(ch_assembly).map { meta, reads, assembly ->
             [meta, reads instanceof List ? reads[0] : reads, assembly instanceof List ? assembly[0] : assembly]
