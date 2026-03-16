@@ -41,8 +41,8 @@ workflow READS_HOSTREMOVAL {
 
 // Filter for unmapped BAM files ending in "_unmapped.bam" and create a channel for SAMTOOLS_FASTQ
     SAMTOOLS_VIEW.out.samtools_bam
-        .filter { it.name.endsWith("_unmapped.bam") } // Filtering directly for clarity
-        .set { ch_unmapped_bam }
+    .filter { meta, bam -> bam.name.endsWith("_unmapped.bam") }
+    .set { ch_unmapped_bam }
     
     // Indexing whole BAM for host removal statistics
     SAMTOOLS_INDEX ( MINIMAP2_ALIGN.out.bam )
