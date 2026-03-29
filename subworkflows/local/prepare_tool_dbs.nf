@@ -1,8 +1,8 @@
-include { DOWNLOAD_DB as RESFINDER_DB_DOWNLOAD } from '../modules/local/download_db'
-include { DOWNLOAD_DB as RGI_DB_DOWNLOAD } from '../modules/local/download_db'
-include { RESFINDER_INDEX } from '../modules/local/RESFINDER_INDEX'
-include { AMRFINDERPLUS_UPDATE } from '../modules/nf-core/amrfinderplus/update/main'
-include { DOWNLOAD_DB as PLASMIDFINDER_DB_DOWNLOAD } from '../modules/local/download_db'
+include { DOWNLOAD_DB as RESFINDER_DB_DOWNLOAD } from '../../modules/local/download_db'
+include { DOWNLOAD_DB as RGI_DB_DOWNLOAD } from '../../modules/local/download_db'
+include { RESFINDER_INDEX } from '../../modules/local/RESFINDER_INDEX'
+include { AMRFINDERPLUS_UPDATE } from '../../modules/nf-core/amrfinderplus/update/main'
+include { DOWNLOAD_DB as PLASMIDFINDER_DB_DOWNLOAD } from '../../modules/local/download_db'
 
 /*
  * Read database path for one tool from database.csv
@@ -75,7 +75,11 @@ workflow PREPARE_TOOL_DBS {
     } else if (params.download_resfinder_db) {
         RESFINDER_DB_DOWNLOAD(Channel.of('resfinder'))
         ch_resfinder_db_final = RESFINDER_INDEX(RESFINDER_DB_DOWNLOAD.out.db)
-            .map { db_files -> file(db_files[0]).parent }
+            .indexed_db
+            .map { db_files -> 
+                def files = db_files instanceof List ? db_files : [db_files]
+                files[0].parent
+            }
     } else {
         ch_resfinder_db_final = Channel.empty()
     }

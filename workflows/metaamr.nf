@@ -84,15 +84,13 @@ if (params.hostremoval_index) {
 include {READS_HOSTREMOVAL       } from '../subworkflows/local/HOSTREMOVAL'
 include {META_ASSEMBLY      } from '../subworkflows/local/ASSEMBLY'
 include {POLISH_ASSEMBLY    } from '../subworkflows/local/POLISH_ASSEMBLY'
-include { PREPARE_TOOL_DBS } from './prepare_tool_dbs'
+include { PREPARE_TOOL_DBS } from '../subworkflows/local/prepare_tool_dbs'
 include { HAMRONIZATION } from '../subworkflows/local/HAMRONIZATION'
 include { VALIDATE_FASTA } from '../modules/local/validate_fasta'
 include { PLASCLASS } from '../modules/local/plasclass'
 include { PLASCLASS_POSTPROCESS } from '../modules/local/plasclass_postprocess.nf'
 include { PROFILING } from '../subworkflows/local/PROFILING'
-include { FILTER_READS_BY_SPECIES } from '../modules/local/filter_reads_by_species'
-include { EXTRACT_FILTERED_READS } from '../modules/local/extract_filtered_reads'
-include { RESFINDER_WITH_SPECIES } from '../modules/local/resfinder_with_species'
+include { TARGET_SPECIES_AMR } from '../subworkflows/local/TARGET_SPECIES_AMR'
 include { COMBINE_CONTIGS_AND_SPECIES } from '../modules/local/combine_contigs_and_species'
 
 /*
@@ -195,6 +193,7 @@ workflow METAAMR {
     } else {
         ch_hostremoved = ch_processed_reads
     }
+  
 
     /*
     SUBWORKFLOW: ASSEMBLY
@@ -345,11 +344,8 @@ workflow METAAMR {
     if (params.run_plasmidfinder) {
         log.info "Running PlasmidFinder"
 
-    // Combine validated assemblies with PlasmidFinder database
-        ch_plasmidfinder_input = ch_validated_assemblies.combine(PREPARE_TOOL_DBS.out.plasmidfinder_db)
-
     // Run PlasmidFinder
-        PLASMIDFINDER_RUN(ch_validated_assemblies, PREPARE_TOOL_DBS.out.plasmidfinder_db)
+        PLASMIDFINDER_RUN(ch_validated_assemblies, PREPARE_TOOL_DBS.out.plasmidfinder_db.first())
 
         ch_versions = ch_versions.mix(PLASMIDFINDER_RUN.out.versions)
 
@@ -384,23 +380,25 @@ workflow METAAMR {
     ch_plasclass_results      = params.run_plasclass ? PLASCLASS.out.report : Channel.empty()
    
 
+    // Run HAMRONIZATION
+    def any_amr_enabled = params.run_abricate || params.run_amrfinderplus || params.run_rgi
 
-     // Count the number of active AMR tools
-    def active_amr_tools = [params.run_abricate, params.run_amrfinderplus, params.run_rgi].count { it }
-    // Run HAMRONIZATION only if more than one AMR tool is active and run_hamronization is true
-    if (params.run_hamronization && active_amr_tools > 1) {
+    if (params.run_hamronization && any_amr_enabled) {
         HAMRONIZATION (
             ch_abricate_results,
             ch_amrfinderplus_results,
             ch_rgi_results
         )
         ch_versions = ch_versions.mix(HAMRONIZATION.out.versions.ifEmpty([]))
+        
+    } else if (params.run_hamronization) {
+        log.warn "HAMRONIZATION requested but no AMR tools are enabled."
     } else {
-        log.info "Skipping HAMRONIZATION: Either fewer than two AMR tools are active or run_hamronization is set to false."
+        log.info "Skipping HAMRONIZATION: --run_hamronization not enabled."
     }
     
-    
-    if (params.run_profiling) {
+    // Run Profiling
+    if (params.run_profiling && !params.target_species) {
     ch_profiling_input = ch_final_polished_assembly.map { meta, assembly -> 
         [meta, [assembly]]  //  
       
@@ -417,57 +415,60 @@ workflow METAAMR {
             [db_meta, file(row.db_path)]
         }
 
-   
     PROFILING(
         ch_profiling_input,
         databases_ch
     )
-
     ch_versions = ch_versions.mix(PROFILING.out.versions)
     ch_multiqc_files = ch_multiqc_files.mix(PROFILING.out.multiqc_files.map { it[1] }.ifEmpty([]))
     
 
-    COMBINE_CONTIGS_AND_SPECIES(
-        PROFILING.out.centrifuge_results.join(PROFILING.out.centrifuge_report)
-    )
-
+    if (params.perform_assembly && params.run_centrifuge) {
+        COMBINE_CONTIGS_AND_SPECIES(
+            PROFILING.out.centrifuge_results.join(PROFILING.out.centrifuge_report)
+        )
+    } else {
+        log.info "Skipping COMBINE_CONTIGS_AND_SPECIES: requires both --perform_assembly and --run_centrifuge."
+    }
 
     }
-        ch_centrifuge_species = params.run_centrifuge ? COMBINE_CONTIGS_AND_SPECIES.out.contigs_species_table : Channel.empty()
-        ch_centrifuge_results = ch_centrifuge_species
+    ch_centrifuge_species = (params.run_profiling && !params.target_species && params.run_centrifuge && params.perform_assembly) \
+        ? COMBINE_CONTIGS_AND_SPECIES.out.contigs_species_table \
+        : Channel.empty()
+    ch_centrifuge_results = ch_centrifuge_species
+    
 
+    // Run Target Species
+    if (params.target_species && params.perform_assembly) {
+        error """
+        --target_species is READ-BASED and cannot be used with assembly.
 
+        Please disable:
+            --perform_assembly
+            --perform_polish_assembly
+
+        Target species mode only works on:
+            raw / trimmed / host-removed reads
+        """
+    }
+    ch_reads_for_target =
+        params.perform_hostremoval ? ch_hostremoved :
+        params.perform_trim       ? ch_processed_reads :
+                                    ch_samplesheet
+    
     if (params.target_species) {
-    // Run species filter
-    FILTER_READS_BY_SPECIES(
-        PROFILING.out.centrifuge_report.join(PROFILING.out.centrifuge_results),
-        params.target_species
-    )
 
-    ch_filtered_ids = FILTER_READS_BY_SPECIES.out.filtered_read_ids
+        TARGET_SPECIES_AMR(
+            ch_reads_for_target,
+            ch_databases,
+            PREPARE_TOOL_DBS.out.resfinder_db,
+            params.target_species
+        )
 
-    // Check if species is present
-    ch_species_summary_raw = FILTER_READS_BY_SPECIES.out.species_summary
-    ch_species_summary = ch_species_summary_raw.filter { meta, file ->
-        !file.text.contains("Absent")
+        ch_versions = ch_versions.mix(TARGET_SPECIES_AMR.out.versions)
+        ch_multiqc_files = ch_multiqc_files.mix(TARGET_SPECIES_AMR.out.multiqc_files.map { it[1] }.ifEmpty([]))
+
     }
-
-    // Extract reads only if species was present
-    EXTRACT_FILTERED_READS(
-        ch_filtered_ids.join(ch_hostremoved)
-    )
-
-    //  Join extracted reads + species summary + ResFinder DB
-    ch_filtered_reads = EXTRACT_FILTERED_READS.out.filtered_reads
-    ch_resfinder_input = ch_filtered_reads
-        .join(ch_species_summary)
-        .combine(PREPARE_TOOL_DBS.out.resfinder_db)
-
-    // Run ResFinder
-    RESFINDER_WITH_SPECIES(ch_resfinder_input)
-}
-
-
 
 
 

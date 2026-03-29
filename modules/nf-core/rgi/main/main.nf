@@ -15,7 +15,7 @@ process RGI_MAIN {
     output:
     tuple val(meta), path("${prefix}_rgi.json"), emit: json
     tuple val(meta), path("${prefix}_rgi.txt"), emit: tsv
-    tuple val(meta), path("${prefix}_temp/"), emit: tmp
+    // tuple val(meta), path("${prefix}_temp/"), emit: tmp
     path "versions.yml", emit: versions
 
     when:

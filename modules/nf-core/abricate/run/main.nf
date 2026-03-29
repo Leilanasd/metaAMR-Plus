@@ -1,17 +1,13 @@
-
 process ABRICATE_RUN {
     tag "$meta.id"
     label 'process_medium'
-
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'https://depot.galaxyproject.org/singularity/abricate%3A1.0.1--ha8f3691_1':
         'biocontainers/abricate:1.0.1--ha8f3691_1' }"
-
     input:
     tuple val(meta), path(assembly)
     val db_name
-    
 
     output:
     tuple val(meta), path("${meta.id}_abricate.tsv"), emit: report
@@ -21,27 +17,26 @@ process ABRICATE_RUN {
     path "versions.yml", emit: versions
 
     when:
-    task.ext.when == null || task.ext.when   
+    task.ext.when == null || task.ext.when
 
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
-    
+
     """
-    
+    # Symlink assembly to a clean name so abricate uses meta.id in the #FILE column
+    ln -s \$(realpath ${assembly}) ${prefix}
+
     abricate \\
         $args \\
         --db ${db_name} \\
         --minid ${params.abricate_minid} \\
         --mincov ${params.abricate_mincov} \\
-        ${assembly} > ${prefix}_abricate.tsv
-
+        ${prefix} > ${prefix}_abricate.tsv
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         abricate: \$(echo \$(abricate --version 2>&1) | sed 's/^.*abricate //' )
     END_VERSIONS
     """
-
-    
 }

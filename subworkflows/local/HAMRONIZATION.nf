@@ -3,6 +3,21 @@ include { HAMRONIZATION_AMRFINDERPLUS } from '../../modules/nf-core/hamronizatio
 include { HAMRONIZATION_RGI } from '../../modules/nf-core/hamronization/rgi/main'
 include { HAMRONIZATION_SUMMARIZE } from '../../modules/nf-core/hamronization/summarize/main'
 
+process PREPARE_HAMRONIZATION_INPUTS {
+    tag "${meta.id}_${tool}"
+
+    input:
+    tuple val(meta), path(report), val(tool)
+
+    output:
+    path("${meta.id}_${tool}_harmonized.tsv")
+
+    script:
+    """
+    cp ${report} ${meta.id}_${tool}_harmonized.tsv
+    """
+}
+
 workflow HAMRONIZATION {
     take:
     ch_abricate       // channel: [ val(meta), path(abricate_report) ]
@@ -10,71 +25,63 @@ workflow HAMRONIZATION {
     ch_rgi            // channel: [ val(meta), path(rgi_report) ]
 
     main:
-    ch_versions = Channel.empty()
+    ch_versions   = Channel.empty()
     ch_harmonized = Channel.empty()
 
     // Harmonize ABRICATE results
-    HAMRONIZATION_ABRICATE ( 
-        ch_abricate.filter { it[1] != null }, 
+    HAMRONIZATION_ABRICATE(
+        ch_abricate.filter { it[1] != null },
         'tsv',
         params.abricate_version,
         params.abricate_db_version
     )
-    ch_harmonized = ch_harmonized.mix(HAMRONIZATION_ABRICATE.out.tsv.map { meta, report -> [meta, report, 'abricate'] })
+    ch_harmonized = ch_harmonized.mix(
+        HAMRONIZATION_ABRICATE.out.tsv.map { meta, report -> [meta, report, 'abricate'] }
+    )
     ch_versions = ch_versions.mix(HAMRONIZATION_ABRICATE.out.versions)
 
     // Harmonize AMRFinderPlus results
-    HAMRONIZATION_AMRFINDERPLUS ( 
-        ch_amrfinderplus.filter { it[1] != null }, 
+    HAMRONIZATION_AMRFINDERPLUS(
+        ch_amrfinderplus.filter { it[1] != null },
         'tsv',
         params.amrfinderplus_version,
         params.amrfinderplus_db_version
     )
-    ch_harmonized = ch_harmonized.mix(HAMRONIZATION_AMRFINDERPLUS.out.tsv.map { meta, report -> [meta, report, 'amrfinder'] })
+    ch_harmonized = ch_harmonized.mix(
+        HAMRONIZATION_AMRFINDERPLUS.out.tsv.map { meta, report -> [meta, report, 'amrfinder'] }
+    )
     ch_versions = ch_versions.mix(HAMRONIZATION_AMRFINDERPLUS.out.versions)
 
     // Harmonize RGI results
-    HAMRONIZATION_RGI ( 
-        ch_rgi.filter { it[1] != null }, 
+    HAMRONIZATION_RGI(
+        ch_rgi.filter { it[1] != null },
         'tsv',
         params.rgi_version,
         params.card_version
     )
-    ch_harmonized = ch_harmonized.mix(HAMRONIZATION_RGI.out.tsv.map { meta, report -> [meta, report, 'rgi'] })
+    ch_harmonized = ch_harmonized.mix(
+        HAMRONIZATION_RGI.out.tsv.map { meta, report -> [meta, report, 'rgi'] }
+    )
     ch_versions = ch_versions.mix(HAMRONIZATION_RGI.out.versions)
 
-    // Prepare reports for summarization
-    ch_reports_to_summarize = ch_harmonized
-        .map { meta, report, tool -> 
-            def newName = "${meta.id}_${tool}_harmonized.tsv"
-            return [newName, report]
-        }
-        .groupTuple(by: 0)
-        .map { newName, reports -> 
-            def harmonized_dir = file("${params.outdir}/harmonized_reports")
-            if( !harmonized_dir.exists() ) {
-                harmonized_dir.mkdirs()
-            }
-            def renamedFile = harmonized_dir.resolve(newName)
-            renamedFile.text = reports[0].text
-            return renamedFile
-        }
-        .collect()
+    // Rename files uniquely before summarize to avoid filename collisions
+    PREPARE_HAMRONIZATION_INPUTS(ch_harmonized)
+
+    ch_reports_to_summarize = PREPARE_HAMRONIZATION_INPUTS.out.collect()
 
     // Summarize harmonized results
-    HAMRONIZATION_SUMMARIZE ( 
+    HAMRONIZATION_SUMMARIZE(
         ch_reports_to_summarize,
         params.arg_hamronization_summarizeformat
     )
 
-    ch_summary = HAMRONIZATION_SUMMARIZE.out.tsv
+    ch_summary  = HAMRONIZATION_SUMMARIZE.out.tsv
     ch_versions = ch_versions.mix(HAMRONIZATION_SUMMARIZE.out.versions)
 
     emit:
-    summary = ch_summary
-    versions = ch_versions
-    harmonized_reports = ch_reports_to_summarize
-    abricate = HAMRONIZATION_ABRICATE.out.tsv
+    summary       = ch_summary
+    versions      = ch_versions
+    abricate      = HAMRONIZATION_ABRICATE.out.tsv
     amrfinderplus = HAMRONIZATION_AMRFINDERPLUS.out.tsv
-    rgi = HAMRONIZATION_RGI.out.tsv
+    rgi           = HAMRONIZATION_RGI.out.tsv
 }
