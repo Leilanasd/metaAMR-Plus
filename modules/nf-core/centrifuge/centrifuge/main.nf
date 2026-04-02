@@ -14,8 +14,8 @@ process CENTRIFUGE_CENTRIFUGE {
     val save_aligned
 
     output:
-    tuple val(meta), path('*_centrifuge_report.txt'), emit: report
-    tuple val(meta), path('*_centrifuge_results.txt'), emit: results
+    tuple val(meta), path('*report.txt'), emit: report
+    tuple val(meta), path('*results.txt'), emit: results
     tuple val(meta), path('*.{sam,tab}'), optional: true, emit: sam
     tuple val(meta), path('*.mapped.fastq{,.1,.2}.gz'), optional: true, emit: fastq_mapped
     tuple val(meta), path('*.unmapped.fastq{,.1,.2}.gz'), optional: true, emit: fastq_unmapped
@@ -27,35 +27,33 @@ process CENTRIFUGE_CENTRIFUGE {
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
-    def is_fasta = reads.name.endsWith('.fasta') || reads.name.endsWith('.fasta.gz') || reads.name.endsWith('.fa') || reads.name.endsWith('.fa.gz')
-    def is_gzipped = reads.name.endsWith('.gz')
-    def input_command = is_gzipped ? "zcat ${reads}" : "cat ${reads}"
-    def input_type = is_fasta ? "-f" : (meta.single_end ? "-U" : "-1")
+    def paired = meta.single_end ? "-U ${reads}" : "-1 ${reads[0]} -2 ${reads[1]}"
     def unaligned = ''
     def aligned = ''
-    if (!is_fasta) {
-        if (meta.single_end) {
-            unaligned = save_unaligned ? "--un-gz ${prefix}.unmapped.fastq.gz" : ''
-            aligned = save_aligned ? "--al-gz ${prefix}.mapped.fastq.gz" : ''
-        } else {
-            unaligned = save_unaligned ? "--un-conc-gz ${prefix}.unmapped.fastq.gz" : ''
-            aligned = save_aligned ? "--al-conc-gz ${prefix}.mapped.fastq.gz" : ''
-        }
+    if (meta.single_end) {
+        unaligned = save_unaligned ? "--un-gz ${prefix}.unmapped.fastq.gz" : ''
+        aligned = save_aligned ? "--al-gz ${prefix}.mapped.fastq.gz" : ''
+    }
+    else {
+        unaligned = save_unaligned ? "--un-conc-gz ${prefix}.unmapped.fastq.gz" : ''
+        aligned = save_aligned ? "--al-conc-gz ${prefix}.mapped.fastq.gz" : ''
     }
     """
-    ##  added "-no-name ._" to ensure  Mac OSX metafiles files aren't included
+    ## we add "-no-name ._" to ensure silly Mac OSX metafiles files aren't included
     db_name=`find -L ${db} -name "*.1.cf" -not -name "._*"  | sed 's/\\.1.cf\$//'`
 
-    ##  directory for placing the pipe files in somewhere other than default /tmp
+    ## make a directory for placing the pipe files in somewhere other than default /tmp
+    ## otherwise get pipefile name clashes when multiple centrifuge runs on same node
+    ## use /tmp at the same time
     mkdir ./temp
 
-    ${input_command} | centrifuge \\
+    centrifuge \\
         -x \$db_name \\
         --temp-directory ./temp \\
         -p ${task.cpus} \\
-        ${input_type} - \\
-        --report-file ${prefix}_centrifuge_report.txt \\
-        -S ${prefix}_centrifuge_results.txt \\
+        ${paired} \\
+        --report-file ${prefix}.report.txt \\
+        -S ${prefix}.results.txt \\
         ${unaligned} \\
         ${aligned} \\
         ${args}
@@ -67,10 +65,22 @@ process CENTRIFUGE_CENTRIFUGE {
     """
 
     stub:
+    def _args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
+    def _paired = meta.single_end ? "-U ${reads}" : "-1 ${reads[0]} -2 ${reads[1]}"
+    def unaligned = ''
+    def aligned = ''
+    if (meta.single_end) {
+        unaligned = save_unaligned ? "--un-gz ${prefix}.unmapped.fastq.gz" : ''
+        aligned = save_aligned ? "--al-gz ${prefix}.mapped.fastq.gz" : ''
+    }
+    else {
+        unaligned = save_unaligned ? "--un-conc-gz ${prefix}.unmapped.fastq.gz" : ''
+        aligned = save_aligned ? "--al-conc-gz ${prefix}.mapped.fastq.gz" : ''
+    }
     """
-    touch ${prefix}_centrifuge_report.txt
-    touch ${prefix}_centrifuge_results.txt
+    touch ${prefix}.report.txt
+    touch ${prefix}.results.txt
     touch ${prefix}.sam
     echo | gzip -n > ${prefix}.unmapped.fastq.gz
     echo | gzip -n > ${prefix}.mapped.fastq.gz

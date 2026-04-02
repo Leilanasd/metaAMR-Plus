@@ -220,11 +220,6 @@ workflow METAAMR {
         ch_final_polished_assembly = ch_assembly
     }
 
-    //  assemblies for downstream tools
-    ch_assembly_for_arg = ch_final_polished_assembly.mix(ch_hostremoved)
-        .groupTuple()
-        .map { meta, assemblies -> [meta, assemblies.find { it != null } ?: meta.reads] }
-
 
     if (params.run_resfinder) {
         log.info "Running ResFinder"
@@ -282,9 +277,7 @@ workflow METAAMR {
         log.info "Running AMRFinderPlus"
 
         ch_amrfinderplus_input = ch_final_polished_assembly
-        ch_amrfinderplus_input.combine(PREPARE_TOOL_DBS.out.amrfinderplus_db)
         
-
         AMRFINDERPLUS_RUN(
             ch_amrfinderplus_input,
             PREPARE_TOOL_DBS.out.amrfinderplus_db,

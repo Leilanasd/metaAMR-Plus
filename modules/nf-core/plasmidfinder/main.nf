@@ -1,69 +1,61 @@
-process PLASMIDFINDER_RUN {
+process PLASMIDFINDER {
     tag "$meta.id"
     label 'process_low'
 
+    // WARN: Version information not provided by tool on CLI. Please update version string below when bumping container versions.
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
         'https://depot.galaxyproject.org/singularity/plasmidfinder:2.1.6--py310hdfd78af_1':
         'biocontainers/plasmidfinder:2.1.6--py310hdfd78af_1' }"
 
     input:
-    tuple val(meta), path(seqs)
-    path plasmidfinder_db
+    tuple val(meta), path(fasta)
 
     output:
-    tuple val(meta), path("*_plasmidfinder.json"), emit: json, optional: true
-    tuple val(meta), path("*_plasmidfinder.txt"), emit: txt, optional: true
-    tuple val(meta), path("*_plasmidfinder.tsv"), emit: tsv, optional: true
-    tuple val(meta), path("*_hit_in_genome_seq.fsa"), emit: genome_seq, optional: true
-    tuple val(meta), path("*_plasmid_seqs.fsa"), emit: plasmid_seq, optional: true
-    path "versions.yml", emit: versions
+    tuple val(meta), path("*.json")                 , emit: json
+    tuple val(meta), path("*.txt")                  , emit: txt
+    tuple val(meta), path("*.tsv")                  , emit: tsv
+    tuple val(meta), path("*-hit_in_genome_seq.fsa"), emit: genome_seq
+    tuple val(meta), path("*-plasmid_seqs.fsa")     , emit: plasmid_seq
+    tuple val("${task.process}"), val('plasmidfinder'), val('2.1.6'), topic: versions, emit: versions_plasmidfinder
+    // WARN: Version information not provided by tool on CLI. Please update this string when bumping container versions.
+
+    when:
+    task.ext.when == null || task.ext.when
 
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
-    if (!prefix) {
-        prefix = "sample"
-    }
-
+    def is_compressed = fasta.getName().endsWith(".gz") ? true : false
+    def fasta_name = fasta.getName().replace(".gz", "")
     """
-    set -e
-    
-
-    if [ ! -f "$seqs" ]; then
-        echo "Error: Input sequence file does not exist: $seqs" >&2
-        exit 1
-    fi
-
-    if [ ! -d "$plasmidfinder_db" ]; then
-        echo "Error: PlasmidFinder database directory does not exist: $plasmidfinder_db" >&2
-        exit 1
+    # Decompress input FASTA if needed
+    if [ "$is_compressed" == "true" ]; then
+        gzip -c -d $fasta > $fasta_name
     fi
 
     plasmidfinder.py \\
         $args \\
-        -i $seqs \\
+        -i $fasta_name \\
         -o ./ \\
-        -p $plasmidfinder_db \\
         -x
 
-    
-    cp data.json ${prefix}_plasmidfinder.json || echo "Warning: data.json not found"
-    cp results.txt ${prefix}_plasmidfinder.txt || echo "Warning: results.txt not found"
-    cp results_tab.tsv ${prefix}_plasmidfinder.tsv || echo "Warning: results_tab.tsv not found"
-    cp Hit_in_genome_seq.fsa ${prefix}_hit_in_genome_seq.fsa || echo "Warning: Hit_in_genome_seq.fsa not found"
-    cp Plasmid_seqs.fsa ${prefix}_plasmid_seqs.fsa || echo "Warning: Plasmid_seqs.fsa not found"
+    # Rename hard-coded outputs with prefix to avoid name collisions
+    mv data.json ${prefix}.json
+    mv results.txt ${prefix}.txt
+    mv results_tab.tsv ${prefix}.tsv
+    mv Hit_in_genome_seq.fsa ${prefix}-hit_in_genome_seq.fsa
+    mv Plasmid_seqs.fsa ${prefix}-plasmid_seqs.fsa
 
-    # List directory contents 
-    ls -l
+    """
 
-    
-
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        plasmidfinder: "2.1.6"
-    END_VERSIONS
-
-    
+    stub:
+    def prefix = task.ext.prefix ?: "${meta.id}"
+    """
+    touch ${prefix}.json
+    touch ${prefix}.txt
+    touch ${prefix}.tsv
+    touch ${prefix}-hit_in_genome_seq.fsa
+    touch ${prefix}-plasmid_seqs.fsa
     """
 }

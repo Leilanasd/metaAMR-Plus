@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/nf-core/metaamr/master/nextflow_schema.json",
-    "title": "nf-core/metaamr pipeline parameters",
+    "$id": "https://raw.githubusercontent.com/nf-core/metaamrplus/master/nextflow_schema.json",
+    "title": "nf-core/metaamrplus pipeline parameters",
     "description": "MetaAMR: A Nextflow pipeline for long-read metagenomics classification and antimicrobial resistance detection",
     "type": "object",
     "$defs": {
@@ -40,40 +40,8 @@
                     "type": "string",
                     "description": "MultiQC report title. Printed as page header, used for filename if not otherwise specified.",
                     "fa_icon": "fas fa-file-signature"
-                },
-                "bacteria_report_outdir": {
-                    "type": "string",
-                    "format": "directory-path",
-                    "description": "The output directory where bacteria reports will be saved.",
-                    "default": "results_full_run/bacteria_reports",
-                    "fa_icon": "fas fa-folder-open"
-                },
-                "summary_outdir": {
-                    "type": "string", 
-                    "format": "directory-path",
-                    "description": "The output directory where summary reports will be saved.",
-                    "default": "results_full_run/summary",
-                    "fa_icon": "fas fa-folder-open"
                 }
-            }
-        },
-
-        "process_options": {
-            "title": "Process options",
-            "type": "object",
-            "description": "Nextflow process-specific options",
-            "properties": {
-                "process": {
-                    "type": "object",
-                    "description": "Nextflow process options",
-                    "properties": {
-                        "cache": {
-                            "type": "string",
-                            "default": "deep",
-                           "description": "Caching mode for processes"
-                        }
-                    }
-                }
+                
             }
         },
 
@@ -143,14 +111,9 @@
                     "default": true,
                     "description": "Save the filtered long reads"
                 },
-                "validate_params": {
-                    "type": "boolean",
-                    "default": true,
-                    "description": "Validate parameters against the schema at runtime"
-                },
+                
                 "perform_trim": {
                     "type": "boolean",
-                    "default": false,
                     "description": "Skip read trimming step"
                 }
             }
@@ -169,7 +132,6 @@
                 },
                 "perform_hostremoval": {
                     "type": "boolean",
-                    "default": true,
                     "description": "Perform host sequence removal"
                 },
                 "hostremoval_index": {
@@ -214,19 +176,13 @@
             "properties": {
                 "perform_assembly": {
                     "type": "boolean",
-                    "default": true,
                     "description": "Perform genome assembly"
                 },
                 "perform_polish_assembly": {
                     "type": "boolean",
-                    "default": false,
                     "description": "Perform assembly polishing"
-                },
-                "use_second_polish": {
-                    "type": "boolean",
-                    "default": true,
-                    "description": "Use second round of polishing (set to false to use only the first round)"
                 }
+                
             }
         },
 
@@ -237,7 +193,6 @@
             "properties": {
                 "save_untarred_databases": {
                     "type": "boolean",
-                    "default": false,
                     "description": "Save untarred databases"
                 },
                 "save_databases": {
@@ -252,7 +207,6 @@
                 },
                 "download_resfinder_db": {
                     "type": "boolean",
-                    "default": true,
                     "description": "Download ResFinder database"
                 },
                 "rgi_db": {
@@ -262,7 +216,6 @@
                 },
                 "download_rgi_db": {
                     "type": "boolean",
-                    "default": true,
                     "description": "Download RGI database"
                 },
                 "amrfinderplus_db": {
@@ -272,7 +225,6 @@
                 },
                 "download_amrfinderplus_db": {
                     "type": "boolean",
-                    "default": true,
                     "description": "Download AMRFinderPlus database"
                 },
                 "abricate_db": {
@@ -287,7 +239,6 @@
                 },
                 "download_plasmidfinder_db": {
                     "type": "boolean",
-                    "default": true,
                     "description": "Download PlasmidFinder database"
                 }
             }
@@ -301,30 +252,25 @@
             "properties": {
                 "run_fastqc": {
                     "type": "boolean",
-                    "default": false,
                     "description": "Run FastQC quality control on input reads",
                     "fa_icon": "fas fa-check"
                 },
             
                 "run_resfinder": {
                     "type": "boolean",
-                    "default": true,
                     "description": "Run ResFinder for antimicrobial resistance gene detection"
                 },
           
                 "resfinder_args": {
                     "type": "string",
-                    "default": "",
                     "description": "Additional arguments for ResFinder"
                 },
                 "resfinder_point_mutations": {
                     "type": "boolean",
-                    "default": false,
                     "description": "Include point mutations in ResFinder analysis"
                 },
                 "run_rgi": {
                     "type": "boolean",
-                    "default": true,
                     "description": "Run RGI (Resistance Gene Identifier)"
                 },
                 "rgi_min_coverage": {
@@ -339,12 +285,10 @@
                 },
                 "run_amrfinderplus": {
                     "type": "boolean",
-                    "default": true,
                     "description": "Run AMRFinderPlus"
                 },
                 "amrfinderplus_args": {
                     "type": "string",
-                    "default": "",
                     "description": "Additional arguments for AMRFinderPlus"
                 },
                 "amrfinderplus_version": {
@@ -354,7 +298,6 @@
                 },
                 "run_abricate": {
                     "type": "boolean",
-                    "default": true,
                     "description": "Run Abricate"
                 },
                 "arg_abricate_db": {
@@ -373,25 +316,20 @@
                     "description": "Minimum coverage percentage for Abricate"
                 },
 
-                
                 "run_plasmidfinder": {
                     "type": "boolean",
-                    "default": true,
                     "description": "Run PlasmidFinder"
                 },
                 "plasmidfinder_args": {
                     "type": "string",
-                    "default": "",
                     "description": "Additional arguments for PlasmidFinder"
                 },
                 "run_plasclass": {
                     "type": "boolean",
-                    "default": true,
                     "description": "Run PlasClass"
                 },
                 "plasclass_options": {
                     "type": "string",
-                    "default": "",
                     "description": "Additional options for PlasClass"
                 },
                 "plasclass_threshold": {
@@ -405,9 +343,11 @@
                     "description": "Run Hamronization"
                 },
                 "hamronization_tools": {
-                    "type": "array",
-                    "default": ["abricate", "amrfinderplus", "rgi"],
-                    "description": "Tools to include in Hamronization"
+                    "type": "string",
+                    "default": "abricate,amrfinderplus,rgi",
+                    "description": "Comma-separated list of tools to include in hAMRonization.",
+                    "fa_icon": "fas fa-tools",
+                    "hidden": true
                 },
                 "arg_hamronization_format": {
                     "type": "string",
@@ -448,9 +388,11 @@
                 "card_version": {
                     "type": "string",
                     "default": "unknown",
-                    "description": "Version of CARD database"
+                    "description": "Version of the CARD database used by RGI, required for hAMRonization reporting.",
+                    "fa_icon": "fas fa-database",
+                    "hidden": true
                 },
-
+                
                 "target_species": {
                    "type": ["string", "null"],
                    "default": null,
@@ -620,34 +562,40 @@
                 "run_profiling": {
                     "type": "boolean",
                     "description": "Run taxonomic profiling",
-                    "fa_icon": "fas fa-play",
-                    "default": false
+                    "fa_icon": "fas fa-play"
+                    
                 },
                 "run_kaiju": {
                     "type": "boolean",
                     "description": "Run Kaiju for taxonomic profiling",
-                    "fa_icon": "fas fa-play",
-                    "default": true
+                    "fa_icon": "fas fa-play"
                 },
                 "run_centrifuge": {
                     "type": "boolean",
                     "description": "Run Centrifuge for taxonomic profiling",
-                    "fa_icon": "fas fa-play",
-                    "default": true
+                    "fa_icon": "fas fa-play"
+                
                 },
                 "save_centrifuge_unclassified": {
                     "type": "boolean",
                     "description": "Save unclassified reads from Centrifuge",
-                    "fa_icon": "fas fa-save",
-                    "default": false
+                    "fa_icon": "fas fa-save"
                 },
                 "save_centrifuge_classified": {
                     "type": "boolean",
                     "description": "Save classified reads from Centrifuge",
-                    "fa_icon": "fas fa-save",
-                    "default": true
+                    "fa_icon": "fas fa-save"
+                },
+                "kaiju_taxon_rank": {
+                    "type": "string",
+                    "default": "species",
+                    "description": "Taxonomic rank to use for Kaiju classification output.",
+                    "fa_icon": "fas fa-sitemap",
+                    "enum": ["species", "genus", "family", "order", "class", "phylum"]
                 }
+            
             }   
+        
         }
     },
     "allOf": [
@@ -680,10 +628,7 @@
         },
         {
             "$ref": "#/$defs/database_options"
-        },
-        {
-            "$ref": "#/$defs/process_options"
-        }  
-        
+        }
+            
     ]
 }

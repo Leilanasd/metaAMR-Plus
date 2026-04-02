@@ -1,35 +1,38 @@
-
 process RGI_MAIN {
-    tag "$meta.id"
+    tag "${meta.id}"
     label 'process_medium'
 
     conda "${moduleDir}/environment.yml"
-    container "${workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/rgi:6.0.3--pyha8f3691_1' :
-        'biocontainers/rgi:6.0.3--pyha8f3691_1'}"
+    container "${workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container
+        ? 'https://depot.galaxyproject.org/singularity/rgi:6.0.5--pyh05cac1d_0'
+        : 'biocontainers/rgi:6.0.5--pyh05cac1d_0'}"
 
     input:
-    tuple val(meta), path(fasta), path(card)
-    path(wildcard)
+    tuple val(meta), path(fasta)
+    path card
+    path wildcard
 
     output:
-    tuple val(meta), path("${prefix}_rgi.json"), emit: json
-    tuple val(meta), path("${prefix}_rgi.txt"), emit: tsv
-    // tuple val(meta), path("${prefix}_temp/"), emit: tmp
+    tuple val(meta), path("*.json"), emit: json
+    tuple val(meta), path("*.txt"), emit: tsv
+    tuple val(meta), path("temp/"), emit: tmp
+    env 'RGI_VERSION', emit: tool_version
+    env 'DB_VERSION', emit: db_version
     path "versions.yml", emit: versions
 
     when:
     task.ext.when == null || task.ext.when
 
     script:
-    def args = task.ext.args ?: '' // Customizes the command for `rgi load`
-    def args2 = task.ext.args ?: '' // Customizes the command for `rgi main`
-    prefix = task.ext.prefix ?: "${meta.id}"
+    def args = task.ext.args ?: ''
+    // This customizes the command: rgi load
+    def args2 = task.ext.args2 ?: ''
+    // This customizes the command: rgi main
+    def prefix = task.ext.prefix ?: "${meta.id}"
     def load_wildcard = ""
 
-    // Conditional addition of wildcard arguments
     if (wildcard) {
-        load_wildcard = """
+        load_wildcard = """ \\
             --wildcard_annotation ${wildcard}/wildcard_database_v\$DB_VERSION.fasta \\
             --wildcard_annotation_all_models ${wildcard}/wildcard_database_v\$DB_VERSION\\_all.fasta \\
             --wildcard_index ${wildcard}/wildcard/index-for-model-sequences.txt \\
@@ -40,55 +43,49 @@ process RGI_MAIN {
     }
 
     """
-    # Extract database version
-    DB_VERSION=\$(basename ${card}/card.json | sed "s/card.json/v1.0/")
+    DB_VERSION=\$(ls ${card}/card_database_*_all.fasta | sed "s/${card}\\/card_database_v\\([0-9].*[0-9]\\).*/\\1/")
 
-    # Load RGI database (only if not already loaded)
-    if [ ! -f "${card}/.rgi_loaded" ]; then
-        rgi load \\
-            $args \\
-            --card_json ${card}/card.json \\
-            --debug --local \\
-            --card_annotation ${card}/nucleotide_fasta_protein_homolog_model.fasta \\
-            --card_annotation_all_models ${card}/protein_fasta_protein_homolog_model.fasta \\
-            $load_wildcard
-        touch "${card}/.rgi_loaded"
-    fi
+    rgi \\
+        load \\
+        ${args} \\
+        --card_json ${card}/card.json \\
+        --debug --local \\
+        --card_annotation ${card}/card_database_v\$DB_VERSION.fasta \\
+        --card_annotation_all_models ${card}/card_database_v\$DB_VERSION\\_all.fasta \\
+        ${load_wildcard}
 
-    # Run RGI main
-    rgi main \\
-        $args2 \\
+    rgi \\
+        main \\
+        ${args2} \\
         --num_threads ${task.cpus} \\
-        --output_file ${prefix}_rgi \\
+        --output_file ${prefix} \\
         --input_sequence ${fasta}
 
-    # Move output files to temp directory
-    mkdir -p ${prefix}_temp/
-    for FILE in *.xml *.fsa *.draft *.potentialGenes *{variant,rrna,protein,predictedGenes,overexpression,homolog}.json; do 
-        [[ -e \$FILE ]] && mv \$FILE ${prefix}_temp/
-    done
+    mkdir temp/
+    for FILE in *.xml *.fsa *.{nhr,nin,nsq} *.draft *.potentialGenes *{variant,rrna,protein,predictedGenes,overexpression,homolog}.json; do [[ -e \$FILE ]] && mv \$FILE temp/; done
 
-    # Record RGI version
     RGI_VERSION=\$(rgi main --version)
 
-    # Save version info
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        rgi: \${RGI_VERSION}
-        rgi-database: \${DB_VERSION}
+        rgi: \$(echo \$RGI_VERSION)
+        rgi-database: \$(echo \$DB_VERSION)
     END_VERSIONS
     """
 
     stub:
     """
-    mkdir -p ${prefix}_temp
-    touch ${prefix}.json
-    touch ${prefix}.txt
+    mkdir -p temp
+    touch test.json
+    touch test.txt
+
+    RGI_VERSION=\$(rgi main --version)
+    DB_VERSION=stub_version
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        rgi: stub_version
-        rgi-database: stub_version
+        rgi: \$(echo \$RGI_VERSION)
+        rgi-database: \$(echo \$DB_VERSION)
     END_VERSIONS
     """
 }

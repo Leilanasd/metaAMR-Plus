@@ -25,11 +25,11 @@ process KAIJU_KAIJU2KRONA {
     dbnodes=`find -L ${db} -name "*nodes.dmp"`
     dbnames=`find -L ${db} -name "*names.dmp"`
     kaiju2krona \\
-        -t ${db}/nodes.dmp \\
-        -n ${db}/names.dmp \\
+        $args \\
+        -t \$dbnodes \\
+        -n \$dbnames \\
         -i ${tsv} \\
-        -o ${prefix}.kaiju2krona.txt \\
-        $args
+        -o ${prefix}.txt
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
@@ -38,7 +38,6 @@ process KAIJU_KAIJU2KRONA {
     """
 
     stub:
-    def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
     touch ${prefix}.txt
