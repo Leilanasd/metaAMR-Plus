@@ -1,21 +1,9 @@
-# Exclude result and temporary files
-results*/
-*.slurm
-*.csv
-slurm/
-datatransfer/
-proj-test/
-work/
 .nextflow*
-tower.yml
-*.err
-*.out
-
-# Project-specific files to exclude
-metaamr.slurm
-samplesheet.csv
-
-# Backup/swap files
-*~
-*.swp
+work/
+data/
+results/
 .DS_Store
+testing/
+testing*
+*.pyc
+null/
