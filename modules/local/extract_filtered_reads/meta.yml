@@ -1,0 +1,39 @@
+name: extract_filtered_reads
+description: Extracts reads matching a list of read IDs from a FASTQ file using seqtk
+keywords:
+  - seqtk
+  - reads
+  - extraction
+  - metagenomics
+tools:
+  - seqtk:
+      description: Toolkit for processing sequences in FASTA/FASTQ formats
+      homepage: https://github.com/lh3/seqtk
+      documentation: https://github.com/lh3/seqtk
+      licence: ["MIT"]
+input:
+  - meta:
+      type: map
+      description: Groovy Map containing sample information e.g. [id:'sample1']
+  - read_ids:
+      type: file
+      description: Text file containing read IDs to extract
+      pattern: "*.filtered_reads.txt"
+  - original_reads:
+      type: file
+      description: Original FASTQ file to extract reads from
+      pattern: "*.{fastq,fastq.gz}"
+output:
+  - meta:
+      type: map
+      description: Groovy Map containing sample information
+  - filtered_reads:
+      type: file
+      description: Extracted reads in gzipped FASTQ format
+      pattern: "*.filtered.fastq.gz"
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+authors:
+  - "@leilanasirzadeh"

@@ -17,7 +17,7 @@ include { PLASMIDFINDER_RUN } from '../modules/nf-core/plasmidfinder/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
-include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_metaamr_pipeline'
+include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_metaamr_pipeline/main'
 include { CENTRIFUGE_CENTRIFUGE } from '../modules/nf-core/centrifuge/centrifuge/main'
 include { CENTRIFUGE_KREPORT } from '../modules/nf-core/centrifuge/kreport/main'
 
@@ -81,17 +81,17 @@ if (params.hostremoval_index) {
 //
 // SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
 //
-include {READS_HOSTREMOVAL       } from '../subworkflows/local/HOSTREMOVAL'
-include {META_ASSEMBLY      } from '../subworkflows/local/ASSEMBLY'
-include {POLISH_ASSEMBLY    } from '../subworkflows/local/POLISH_ASSEMBLY'
-include { PREPARE_TOOL_DBS } from '../subworkflows/local/prepare_tool_dbs'
-include { HAMRONIZATION } from '../subworkflows/local/HAMRONIZATION'
-include { VALIDATE_FASTA } from '../modules/local/validate_fasta'
-include { PLASCLASS } from '../modules/local/plasclass'
-include { PLASCLASS_POSTPROCESS } from '../modules/local/plasclass_postprocess.nf'
-include { PROFILING } from '../subworkflows/local/PROFILING'
-include { TARGET_SPECIES_AMR } from '../subworkflows/local/TARGET_SPECIES_AMR'
-include { COMBINE_CONTIGS_AND_SPECIES } from '../modules/local/combine_contigs_and_species'
+include {READS_HOSTREMOVAL       } from '../subworkflows/local/HOSTREMOVAL/main'
+include {META_ASSEMBLY      } from '../subworkflows/local/ASSEMBLY/main'
+include {POLISH_ASSEMBLY    } from '../subworkflows/local/POLISH_ASSEMBLY/main'
+include { PREPARE_TOOL_DBS } from '../subworkflows/local/prepare_tool_dbs/main'
+include { HAMRONIZATION } from '../subworkflows/local/HAMRONIZATION/main'
+include { VALIDATE_FASTA } from '../modules/local/validate_fasta/main'
+include { PLASCLASS } from '../modules/local/plasclass/main'
+include { PLASCLASS_POSTPROCESS } from '../modules/local/plasclass_postprocess/main'
+include { PROFILING } from '../subworkflows/local/PROFILING/main'
+include { TARGET_SPECIES_AMR } from '../subworkflows/local/TARGET_SPECIES_AMR/main'
+include { COMBINE_CONTIGS_AND_SPECIES } from '../modules/local/combine_contigs_and_species/main'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

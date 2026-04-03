@@ -1,0 +1,33 @@
+name: validate_fasta
+description: Validates and sanitizes FASTA file headers for downstream compatibility
+keywords:
+  - fasta
+  - validation
+  - sanitize
+tools:
+  - bash:
+      description: GNU Bourne Again shell
+      homepage: https://www.gnu.org/software/bash/
+      licence: ["GPL-3.0-or-later"]
+input:
+  - meta:
+      type: map
+      description: Groovy Map containing sample information e.g. [id:'sample1']
+  - fasta:
+      type: file
+      description: Input FASTA file (gzipped or uncompressed)
+      pattern: "*.{fasta,fa,fasta.gz,fa.gz}"
+output:
+  - meta:
+      type: map
+      description: Groovy Map containing sample information
+  - validated_fasta:
+      type: file
+      description: Validated and sanitized FASTA file with renamed headers
+      pattern: "*_validated.fasta"
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+authors:
+  - "@leilanasirzadeh"

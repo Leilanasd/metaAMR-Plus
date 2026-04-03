@@ -16,10 +16,9 @@
 */
 
 include { METAAMR  } from './workflows/metaamr'
-include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_metaamr_pipeline'
-include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_metaamr_pipeline'
-include { getGenomeAttribute      } from './subworkflows/local/utils_nfcore_metaamr_pipeline'
-
+include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_metaamr_pipeline/main'
+include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_metaamr_pipeline/main'
+include { getGenomeAttribute      } from './subworkflows/local/utils_nfcore_metaamr_pipeline/main'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     GENOME PARAMETER VALUES

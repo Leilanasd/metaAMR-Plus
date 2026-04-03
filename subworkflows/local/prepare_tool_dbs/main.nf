@@ -1,8 +1,9 @@
-include { DOWNLOAD_DB as RESFINDER_DB_DOWNLOAD } from '../../modules/local/download_db'
-include { DOWNLOAD_DB as RGI_DB_DOWNLOAD } from '../../modules/local/download_db'
-include { RESFINDER_INDEX } from '../../modules/local/RESFINDER_INDEX'
+include { DOWNLOAD_DB as RESFINDER_DB_DOWNLOAD } from '../../modules/local/download_db/main'
+include { DOWNLOAD_DB as RGI_DB_DOWNLOAD } from '../../modules/local/download_db/main'
+include { DOWNLOAD_DB as PLASMIDFINDER_DB_DOWNLOAD } from '../../modules/local/download_db/main'
+include { RESFINDER_INDEX } from '../../modules/local/resfinder_index/main'
 include { AMRFINDERPLUS_UPDATE } from '../../modules/nf-core/amrfinderplus/update/main'
-include { DOWNLOAD_DB as PLASMIDFINDER_DB_DOWNLOAD } from '../../modules/local/download_db'
+
 
 /*
  * Read database path for one tool from database.csv

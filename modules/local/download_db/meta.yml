@@ -1,0 +1,38 @@
+name: download_db
+description: Downloads databases for AMR detection tools including ResFinder, RGI, AMRFinderPlus and PlasmidFinder
+keywords:
+  - database
+  - download
+  - AMR
+  - resfinder
+  - rgi
+  - amrfinderplus
+  - plasmidfinder
+tools:
+  - git:
+      description: Distributed version control system
+      homepage: https://git-scm.com/
+      licence: ["GPL-2.0-only"]
+  - wget:
+      description: Network downloader
+      homepage: https://www.gnu.org/software/wget/
+      licence: ["GPL-3.0-or-later"]
+input:
+  - tool:
+      type: string
+      description: Name of the tool to download the database for (resfinder, rgi, amrfinderplus, plasmidfinder)
+output:
+  - db:
+      type: directory
+      description: Downloaded database directory
+      pattern: "*_db"
+  - rgi_archive:
+      type: file
+      description: RGI database archive (only for rgi tool)
+      pattern: "*_db.tar.gz"
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+authors:
+  - "@leilanasirzadeh"

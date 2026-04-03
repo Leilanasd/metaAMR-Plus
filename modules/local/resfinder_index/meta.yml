@@ -1,0 +1,28 @@
+name: resfinder_index
+description: Indexes the ResFinder database using KMA for use in ResFinder analysis
+keywords:
+  - resfinder
+  - database
+  - index
+  - kma
+tools:
+  - kma:
+      description: KMA is a mapping method designed to map raw reads directly against redundant databases
+      homepage: https://bitbucket.org/genomicepidemiology/kma
+      documentation: https://bitbucket.org/genomicepidemiology/kma
+      licence: ["Apache-2.0"]
+input:
+  - db:
+      type: directory
+      description: ResFinder database directory to be indexed
+output:
+  - indexed_db:
+      type: directory
+      description: Indexed ResFinder database files
+      pattern: "*"
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+authors:
+  - "@leilanasirzadeh"

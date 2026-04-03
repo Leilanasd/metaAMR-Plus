@@ -5,9 +5,9 @@
 */
 include { CENTRIFUGE_CENTRIFUGE } from '../../modules/nf-core/centrifuge/centrifuge/main'
 include { CENTRIFUGE_KREPORT } from '../../modules/nf-core/centrifuge/kreport/main'
-include { FILTER_READS_BY_SPECIES } from '../../modules/local/filter_reads_by_species'
-include { EXTRACT_FILTERED_READS } from '../../modules/local/extract_filtered_reads'
-include { RESFINDER_WITH_SPECIES } from '../../modules/local/resfinder_with_species'
+include { FILTER_READS_BY_SPECIES } from '../../modules/local/filter_reads_by_species/main'
+include { EXTRACT_FILTERED_READS } from '../../modules/local/extract_filtered_reads/main'
+include { RESFINDER_WITH_SPECIES } from '../../modules/local/resfinder_with_species/main'
 
 workflow TARGET_SPECIES_AMR {
 
