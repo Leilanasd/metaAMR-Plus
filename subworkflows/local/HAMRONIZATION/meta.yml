@@ -1,0 +1,42 @@
+name: hamronization
+description: Harmonizes AMR detection results from multiple tools (Abricate, AMRFinderPlus, RGI) into a standardized format using hAMRonization
+components:
+  - hamronization/abricate
+  - hamronization/amrfinderplus
+  - hamronization/rgi
+  - hamronization/summarize
+keywords:
+  - AMR
+  - hamronization
+  - standardization
+  - abricate
+  - amrfinderplus
+  - rgi
+input:
+  - ch_abricate:
+      type: channel
+      description: Channel containing Abricate AMR detection results [ val(meta), path(report) ]
+  - ch_amrfinderplus:
+      type: channel
+      description: Channel containing AMRFinderPlus AMR detection results [ val(meta), path(report) ]
+  - ch_rgi:
+      type: channel
+      description: Channel containing RGI AMR detection results [ val(meta), path(report) ]
+output:
+  - summary:
+      type: channel
+      description: Channel containing harmonized and summarized AMR results [ path(tsv) ]
+  - abricate:
+      type: channel
+      description: Channel containing harmonized Abricate results [ val(meta), path(tsv) ]
+  - amrfinderplus:
+      type: channel
+      description: Channel containing harmonized AMRFinderPlus results [ val(meta), path(tsv) ]
+  - rgi:
+      type: channel
+      description: Channel containing harmonized RGI results [ val(meta), path(tsv) ]
+  - versions:
+      type: channel
+      description: Channel containing software versions
+authors:
+  - "@leilanasirzadeh"

@@ -1,0 +1,27 @@
+name: assembly
+description: Performs de novo metagenomic assembly of long reads using Flye and evaluates assembly quality with QUAST
+components:
+  - flye
+  - quast
+keywords:
+  - assembly
+  - metagenomics
+  - flye
+  - quast
+  - long-reads
+input:
+  - reads:
+      type: channel
+      description: Channel containing sample metadata and paths to FASTQ files [ val(meta), path(reads) ]
+output:
+  - ch_assembly:
+      type: channel
+      description: Channel containing assembled contigs in FASTA format [ val(meta), path(fasta) ]
+  - quast_results:
+      type: channel
+      description: Channel containing QUAST assembly quality evaluation results
+  - ch_versions:
+      type: channel
+      description: Channel containing software versions
+authors:
+  - "@leilanasirzadeh"

@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "utils_nfcore_metaamrplus_pipeline"
+description: Subworkflow with utility functions specific to the nf-core/metaamrplus pipeline
+keywords:
+  - utility
+  - pipeline
+  - initialise
+components: []
+input:
+  - nextflow_cli_args:
+      type: list
+      description: Nextflow CLI positional arguments
+output:
+  - success:
+      type: boolean
+      description: Dummy output to indicate success
+authors:
+  - "@leilanasirzadeh"

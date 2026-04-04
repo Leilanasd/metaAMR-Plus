@@ -1,0 +1,45 @@
+name: target_species_amr
+description: Performs species-targeted AMR detection by classifying reads with Centrifuge, filtering for a target species, and running ResFinder on the filtered reads
+components:
+  - centrifuge/centrifuge
+  - centrifuge/kreport
+  - filter_reads_by_species
+  - extract_filtered_reads
+  - resfinder_with_species
+keywords:
+  - AMR
+  - metagenomics
+  - centrifuge
+  - resfinder
+  - species-targeted
+input:
+  - reads:
+      type: channel
+      description: Channel containing sample metadata and reads [ val(meta), path(reads) ]
+  - databases:
+      type: channel
+      description: Channel containing database metadata and paths [ val(db_meta), path(db) ]
+  - resfinder_db:
+      type: channel
+      description: Channel containing path to ResFinder database
+  - target_species:
+      type: string
+      description: Target species name to filter reads for AMR detection
+output:
+  - filtered_reads:
+      type: channel
+      description: Channel containing reads filtered for target species [ val(meta), path(reads) ]
+  - species_summary:
+      type: channel
+      description: Channel containing species classification summary [ val(meta), path(txt) ]
+  - resfinder:
+      type: channel
+      description: Channel containing ResFinder AMR results for target species [ val(meta), path(txt) ]
+  - multiqc_files:
+      type: channel
+      description: Channel containing MultiQC input files
+  - versions:
+      type: channel
+      description: Channel containing software versions
+authors:
+  - "@leilanasirzadeh"

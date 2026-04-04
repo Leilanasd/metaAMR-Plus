@@ -1,0 +1,24 @@
+name: polish_assembly
+description: Polishes assembled contigs using Minimap2 alignment and Racon consensus to improve assembly accuracy
+components:
+  - minimap2/align
+  - racon
+keywords:
+  - polishing
+  - assembly
+  - minimap2
+  - racon
+  - long-reads
+input:
+  - ch_input:
+      type: channel
+      description: Channel containing sample metadata, reads and assembly [ val(meta), path(reads), path(assembly) ]
+output:
+  - polished_assembly_1:
+      type: channel
+      description: Channel containing Racon-polished assembly in gzipped FASTA format [ val(meta), path(fasta.gz) ]
+  - versions:
+      type: channel
+      description: Channel containing software versions
+authors:
+  - "@leilanasirzadeh"

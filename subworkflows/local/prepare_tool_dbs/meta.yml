@@ -1,0 +1,32 @@
+name: prepare_tool_dbs
+description: Prepares databases for AMR detection tools by either downloading them or using pre-existing paths provided by the user
+components:
+  - amrfinderplus/update
+  - download_db
+  - resfinder_index
+keywords:
+  - database
+  - resfinder
+  - rgi
+  - amrfinderplus
+  - plasmidfinder
+input:
+  - databases:
+      type: file
+      description: Optional CSV file containing paths to pre-built databases
+      pattern: "*.csv"
+output:
+  - resfinder_db:
+      type: channel
+      description: Channel containing path to ResFinder database
+  - rgi_db:
+      type: channel
+      description: Channel containing path to RGI/CARD database
+  - amrfinderplus_db:
+      type: channel
+      description: Channel containing path to AMRFinderPlus database
+  - plasmidfinder_db:
+      type: channel
+      description: Channel containing path to PlasmidFinder database
+authors:
+  - "@leilanasirzadeh"

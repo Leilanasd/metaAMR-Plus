@@ -1,0 +1,42 @@
+name: hostremoval
+description: Removes host reads from long-read sequencing data by aligning to a reference genome using Minimap2 and filtering with Samtools
+components:
+  - minimap2/index
+  - minimap2/align
+  - samtools/view
+  - samtools/fastq
+  - samtools/index
+  - samtools/stats
+keywords:
+  - host removal
+  - minimap2
+  - samtools
+  - long-reads
+  - metagenomics
+input:
+  - reads:
+      type: channel
+      description: Channel containing sample metadata and paths to FASTQ files [ val(meta), path(reads) ]
+  - reference:
+      type: file
+      description: Host reference genome FASTA file
+      pattern: "*.{fasta,fa,fna}"
+  - index:
+      type: file
+      description: Pre-built Minimap2 index file (optional)
+      pattern: "*.mmi"
+output:
+  - reads:
+      type: channel
+      description: Channel containing host-removed reads in FASTQ format [ val(meta), path(reads) ]
+  - stats:
+      type: channel
+      description: Channel containing Samtools alignment statistics [ val(meta), path(stats) ]
+  - versions:
+      type: channel
+      description: Channel containing software versions
+  - mqc:
+      type: channel
+      description: Channel containing MultiQC files
+authors:
+  - "@leilanasirzadeh"

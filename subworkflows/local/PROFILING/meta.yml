@@ -1,0 +1,47 @@
+name: profiling
+description: Performs taxonomic profiling of metagenomic samples using Kaiju and/or Centrifuge with optional Krona visualizations
+components:
+  - kaiju/kaiju
+  - kaiju/kaiju2table
+  - kaiju/kaiju2krona
+  - centrifuge/centrifuge
+  - centrifuge/kreport
+  - krona/ktimporttext
+keywords:
+  - metagenomics
+  - taxonomy
+  - profiling
+  - kaiju
+  - centrifuge
+  - krona
+input:
+  - reads_ch:
+      type: channel
+      description: Channel containing sample metadata and reads [ val(meta), path(reads) ]
+  - databases_ch:
+      type: channel
+      description: Channel containing database metadata and paths [ val(db_meta), path(db) ]
+output:
+  - raw_classifications:
+      type: channel
+      description: Channel containing raw classification results from all tools
+  - raw_profiles:
+      type: channel
+      description: Channel containing raw profiling results
+  - centrifuge_report:
+      type: channel
+      description: Channel containing Centrifuge classification reports [ val(meta), path(report) ]
+  - centrifuge_results:
+      type: channel
+      description: Channel containing Centrifuge classification results [ val(meta), path(results) ]
+  - krona_html:
+      type: channel
+      description: Channel containing Krona HTML visualizations
+  - multiqc_files:
+      type: channel
+      description: Channel containing MultiQC input files
+  - versions:
+      type: channel
+      description: Channel containing software versions
+authors:
+  - "@leilanasirzadeh"
