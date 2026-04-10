@@ -78,8 +78,9 @@ def getWorkflowVersion() {
 // Get software versions for pipeline
 //
 def processVersionsFromYAML(yaml_file) {
-    def yaml = new org.yaml.snakeyaml.Yaml()
-    def versions = yaml.load(yaml_file).collectEntries { k, v -> [k.tokenize(':')[-1], v] }
+    def constructor = new org.yaml.snakeyaml.constructor.SafeConstructor(new org.yaml.snakeyaml.LoaderOptions())
+    def yaml = new org.yaml.snakeyaml.Yaml(constructor)
+    def versions = yaml.load(yaml_file.text).collectEntries { k, v -> [k.tokenize(':')[-1], v] }
     return yaml.dumpAsMap(versions).trim()
 }
 
@@ -97,8 +98,29 @@ def workflowVersionToYAML() {
 //
 // Get channel of software versions used in pipeline in YAML format
 //
+def processVersionsFromTopic(version_tuple) {
+    // topic channel emits: [process_name, tool_name, version_string]
+    def yaml = new org.yaml.snakeyaml.Yaml()
+    def tool  = version_tuple[1]
+    def ver   = version_tuple[2].toString().trim()
+    return yaml.dumpAsMap([(tool): ver]).trim()
+}
+
 def softwareVersionsToYAML(ch_versions) {
-    return ch_versions.unique().map { version -> processVersionsFromYAML(version) }.unique().mix(channel.of(workflowVersionToYAML()))
+    def ch_yaml = ch_versions
+        .filter { it instanceof java.nio.file.Path || (it instanceof String && it.endsWith(".yml")) }
+        .unique()
+        .map { version -> processVersionsFromYAML(version) }
+
+    def ch_topic = ch_versions
+        .filter { it instanceof List && it.size() == 3 }
+        .unique()
+        .map { version -> processVersionsFromTopic(version) }
+
+    return ch_yaml
+        .mix(ch_topic)
+        .unique()
+        .mix(channel.of(workflowVersionToYAML()))
 }
 
 //

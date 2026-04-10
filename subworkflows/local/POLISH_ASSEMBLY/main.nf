@@ -1,5 +1,5 @@
-include { MINIMAP2_ALIGN as MINIMAP2_POLISH } from '../../modules/nf-core/minimap2/align/main'
-include { RACON } from '../../modules/nf-core/racon/main'
+include { MINIMAP2_ALIGN as MINIMAP2_POLISH } from '../../../modules/nf-core/minimap2/align/main'
+include { RACON } from '../../../modules/nf-core/racon/main'
 
 workflow POLISH_ASSEMBLY {
     take:
@@ -28,10 +28,10 @@ workflow POLISH_ASSEMBLY {
     // Minimap2 alignment for polishing
     MINIMAP2_POLISH(
         ch_prepped_assembly.map { meta, reads, assembly -> [meta, reads] },
-        ch_prepped_assembly.map { meta, reads, assembly -> assembly },
-        false, true, false
+        ch_prepped_assembly.map { meta, reads, assembly -> [[id: assembly.baseName], assembly] },
+        false, "bai", true, false
     )
-    ch_versions = ch_versions.mix(MINIMAP2_POLISH.out.versions.first())
+    // topic channel: MINIMAP2_POLISH versions
 
     ch_minimap2_output = MINIMAP2_POLISH.out.paf
         .map { it -> sleep(100); it }
@@ -61,6 +61,8 @@ workflow POLISH_ASSEMBLY {
 
         return [meta, racon_gz]
     }
+
+    ch_versions = ch_versions.mix(Channel.topic('versions'))
 
     emit:
     polished_assembly_1 = ch_racon_gzipped

@@ -43,7 +43,7 @@ process RGI_MAIN {
     }
 
     """
-    DB_VERSION=\$(ls ${card}/card_database_*_all.fasta | sed "s/${card}\\/card_database_v\\([0-9].*[0-9]\\).*/\\1/")
+    DB_VERSION=\$(grep -oE [0-9]+[.][0-9]+[.][0-9]+ ${card}/CARD-Download-README.txt | tail -1 | tr -d [:space:] || echo unknown)
 
     rgi \\
         load \\

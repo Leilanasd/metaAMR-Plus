@@ -31,11 +31,7 @@ process DOWNLOAD_DB {
             wget https://card.mcmaster.ca/latest/data -O ${tool}_db.tar.gz
             tar -xvf ${tool}_db.tar.gz -C ${tool}_db
 
-            if command -v rgi >/dev/null 2>&1; then
-                TOOL_VERSION=\$(rgi main --version 2>&1 | sed 's/^.*v//')
-            else
-                TOOL_VERSION="unknown"
-            fi
+            TOOL_VERSION=\$(grep -oE [0-9]+[.][0-9]+[.][0-9]+ ${tool}_db/CARD-Download-README.txt | tail -1 || echo unknown)
             ;;
         amrfinderplus)
             amrfinder_update --force_update --database ${tool}_db

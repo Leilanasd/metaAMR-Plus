@@ -2,13 +2,13 @@
 // Remove host reads via alignment and export off-target reads
 //
 
-include { MINIMAP2_INDEX             } from '../../modules/nf-core/minimap2/index/main'
-include { MINIMAP2_ALIGN             } from '../../modules/nf-core/minimap2/align/main'
-include { SAMTOOLS_VIEW              } from '../../modules/nf-core/samtools/view/main'
-include { SAMTOOLS_FASTQ             } from '../../modules/nf-core/samtools/fastq/main'
-include { SAMTOOLS_INDEX             } from '../../modules/nf-core/samtools/index/main'
-include { SAMTOOLS_STATS             } from '../../modules/nf-core/samtools/stats/main'
-include { SAMTOOLS_SORT              } from '../../modules/nf-core/samtools/sort/main'
+include { MINIMAP2_INDEX             } from '../../../modules/nf-core/minimap2/index/main'
+include { MINIMAP2_ALIGN             } from '../../../modules/nf-core/minimap2/align/main'
+include { SAMTOOLS_VIEW              } from '../../../modules/nf-core/samtools/view/main'
+include { SAMTOOLS_FASTQ             } from '../../../modules/nf-core/samtools/fastq/main'
+include { SAMTOOLS_INDEX             } from '../../../modules/nf-core/samtools/index/main'
+include { SAMTOOLS_STATS             } from '../../../modules/nf-core/samtools/stats/main'
+include { SAMTOOLS_SORT              } from '../../../modules/nf-core/samtools/sort/main'
 
 workflow READS_HOSTREMOVAL {
     take:
@@ -22,13 +22,13 @@ workflow READS_HOSTREMOVAL {
 
     if ( !params.hostremoval_index ) {
         ch_minimap2_index = MINIMAP2_INDEX ( [ [], reference ] ).index.map { it[1] }
-        ch_versions       = ch_versions.mix( MINIMAP2_INDEX.out.versions )
+        // topic channel: MINIMAP2_INDEX versions
     } else {
         ch_minimap2_index = index
     }
      // Pass FILTLONG processed reads to the alignment step for host removal
-    MINIMAP2_ALIGN ( reads , ch_minimap2_index, true, false, false)
-    ch_versions        = ch_versions.mix( MINIMAP2_ALIGN.out.versions.first() )
+    MINIMAP2_ALIGN ( reads , ch_minimap2_index.map { index -> [[id:"reference"], index] }, true, "bai", false, false)
+    // topic channel: MINIMAP2_ALIGN versions
     ch_minimap2_mapped = MINIMAP2_ALIGN.out.bam
         .map {
             meta, reads ->
@@ -36,28 +36,34 @@ workflow READS_HOSTREMOVAL {
         }
 
     // Generate unmapped reads FASTQ for downstream taxprofiling
-    SAMTOOLS_VIEW ( ch_minimap2_mapped , [[],[]], [] )
-    ch_versions      = ch_versions.mix( SAMTOOLS_VIEW.out.versions.first() )
+    SAMTOOLS_VIEW ( ch_minimap2_mapped, [[],[],[]], [[],[]], [[],[]], "bai" )
+    // topic channel: SAMTOOLS_VIEW versions
 
 // Filter for unmapped BAM files ending in "_unmapped.bam" and create a channel for SAMTOOLS_FASTQ
-    SAMTOOLS_VIEW.out.samtools_bam
-    .filter { meta, bam -> bam.name.endsWith("_unmapped.bam") }
+    SAMTOOLS_VIEW.out.bam
+    .filter { meta, bam -> bam.name.contains(".unmapped.bam") }
     .set { ch_unmapped_bam }
-    
+
+    // Convert unmapped BAM to FASTQ
+    SAMTOOLS_FASTQ ( ch_unmapped_bam, false )
+    // topic channel: SAMTOOLS_FASTQ versions
+
     // Indexing whole BAM for host removal statistics
     SAMTOOLS_INDEX ( MINIMAP2_ALIGN.out.bam )
-    ch_versions      = ch_versions.mix( SAMTOOLS_INDEX.out.versions.first() )
+    // topic channel: SAMTOOLS_INDEX versions
 
     bam_bai = MINIMAP2_ALIGN.out.bam
-        .join(SAMTOOLS_INDEX.out.bai)
+        .join(SAMTOOLS_INDEX.out.index)
 
-    SAMTOOLS_STATS ( bam_bai, [[],reference] )
-    ch_versions = ch_versions.mix(SAMTOOLS_STATS.out.versions.first())
+    SAMTOOLS_STATS ( bam_bai, [[],[],[]] )
+    // topic channel: SAMTOOLS_STATS versions
     ch_multiqc_files = ch_multiqc_files.mix( SAMTOOLS_STATS.out.stats )
+
+    ch_versions = ch_versions.mix(Channel.topic('versions'))
 
     emit:
     stats    = SAMTOOLS_STATS.out.stats     //channel: [val(meta), [reads  ] ]
-    reads    = SAMTOOLS_VIEW.out.fastq       // channel for the filtered FASTQ files
+    reads    = SAMTOOLS_FASTQ.out.other
     versions = ch_versions                 // channel: [ versions.yml ]
     mqc      = ch_multiqc_files
 }

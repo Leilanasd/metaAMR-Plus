@@ -1,5 +1,5 @@
-include { FLYE as FLYE_META } from '../../modules/nf-core/flye/main'
-include { QUAST } from '../../modules/nf-core/quast/main' 
+include { FLYE as FLYE_META } from '../../../modules/nf-core/flye/main'
+include { QUAST } from '../../../modules/nf-core/quast/main' 
 
 
 workflow META_ASSEMBLY {
@@ -17,18 +17,20 @@ workflow META_ASSEMBLY {
         reads,
         mode,
     ).fasta
+    // topic channel: FLYE_META versions
 
-    ch_versions = ch_versions.mix(FLYE_META.out.versions)
    
     // for assembly quality evaluation
-    QUAST(ch_assembly)
-    ch_versions = ch_versions.mix(QUAST.out.versions)
+    QUAST(ch_assembly, [[],[]], [[],[]])
+    // topic channel: QUAST versions
 
 
+
+    ch_versions = ch_versions.mix(Channel.topic('versions'))
 
     emit:
-    ch_assembly  
-    ch_versions
+    assembly      = ch_assembly
+    versions      = ch_versions
     quast_results = QUAST.out.results      
     
 }

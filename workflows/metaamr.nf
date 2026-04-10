@@ -13,7 +13,7 @@ include { AMRFINDERPLUS_UPDATE } from '../modules/nf-core/amrfinderplus/update/m
 include { ABRICATE_RUN } from '../modules/nf-core/abricate/run/main' 
 include { RGI_CARDANNOTATION } from '../modules/nf-core/rgi/cardannotation/main' 
 include { RGI_MAIN } from '../modules/nf-core/rgi/main/main' 
-include { PLASMIDFINDER_RUN } from '../modules/nf-core/plasmidfinder/main'
+include { PLASMIDFINDER } from '../modules/nf-core/plasmidfinder/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -141,6 +141,7 @@ workflow METAAMR {
     
     // Prepare tool-specific databases
     PREPARE_TOOL_DBS()
+    ch_versions = ch_versions.mix(PREPARE_TOOL_DBS.out.versions)
     
     def ch_rgi_db_final = PREPARE_TOOL_DBS.out.rgi_db
     //
@@ -151,7 +152,7 @@ workflow METAAMR {
             ch_samplesheet
         )
         ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
-        ch_versions = ch_versions.mix(FASTQC.out.versions.first())
+        // topic channel: FASTQC versions
     }
     //
     // MODULE: Run PORECHOPS & FILTLONG
@@ -169,7 +170,7 @@ workflow METAAMR {
         ch_processed_reads = FILTLONG ( ch_clipped_reads.map { meta, reads -> [ meta, [], reads ] } ).reads
 
         ch_versions = ch_versions.mix(PORECHOP_PORECHOP.out.versions.first())
-        ch_versions = ch_versions.mix(FILTLONG.out.versions.first())
+        // topic channel: FILTLONG versions
         ch_multiqc_files = ch_multiqc_files.mix(
             FILTLONG.out.log
                 .map { meta, log -> log }
@@ -200,8 +201,8 @@ workflow METAAMR {
     */
 
     if ( params.perform_assembly) {
-        ch_assembly = META_ASSEMBLY(ch_hostremoved).ch_assembly   
-        ch_versions = ch_versions.mix(META_ASSEMBLY.out.ch_versions)
+        ch_assembly = META_ASSEMBLY(ch_hostremoved).assembly   
+        ch_versions = ch_versions.mix(META_ASSEMBLY.out.versions)
         ch_quast = META_ASSEMBLY.out.quast_results 
     } else {
         ch_assembly = ch_hostremoved
@@ -216,6 +217,9 @@ workflow METAAMR {
         POLISH_ASSEMBLY(ch_polish_input)
         ch_final_polished_assembly = POLISH_ASSEMBLY.out.polished_assembly_1
         ch_versions = ch_versions.mix(POLISH_ASSEMBLY.out.versions)
+    } else if (params.perform_polish_assembly && !params.perform_assembly) {
+        log.warn "Assembly polishing was requested (--perform_polish_assembly) but --perform_assembly is not enabled. Skipping polishing."
+        ch_final_polished_assembly = ch_assembly
     } else {
         ch_final_polished_assembly = ch_assembly
     }
@@ -248,11 +252,15 @@ workflow METAAMR {
         }
 
     // Run ResFinder
-        RESFINDER_RUN(ch_resfinder_input)
+        RESFINDER_RUN(
+            ch_resfinder_input,
+            [],
+            PREPARE_TOOL_DBS.out.resfinder_db
+        )
 
     // Capture versions & outputs
         ch_versions = ch_versions.mix(RESFINDER_RUN.out.versions.first())
-        ch_resfinder = RESFINDER_RUN.out.all_outputs
+        ch_resfinder = RESFINDER_RUN.out.resfinder_results_tab
     }
     
     if (params.run_abricate) {
@@ -299,14 +307,10 @@ workflow METAAMR {
         ch_rgi_input = ch_final_polished_assembly
             .map { meta, assembly -> [ meta, assembly ] }
             
-        ch_rgi_input
-            .combine(ch_rgi_db_final)
-            .map { meta, assembly, db -> [ meta, assembly, db ] }  
-            .set { ch_rgi_combined_input }
-
         RGI_MAIN(
-            ch_rgi_combined_input,
-            []  
+            ch_rgi_input,
+            ch_rgi_db_final,
+            []
         )
 
         ch_versions = ch_versions.mix(RGI_MAIN.out.versions)
@@ -338,12 +342,12 @@ workflow METAAMR {
         log.info "Running PlasmidFinder"
 
     // Run PlasmidFinder
-        PLASMIDFINDER_RUN(ch_validated_assemblies, PREPARE_TOOL_DBS.out.plasmidfinder_db.first())
+        PLASMIDFINDER(ch_validated_assemblies, PREPARE_TOOL_DBS.out.plasmidfinder_db.first())
 
-        ch_versions = ch_versions.mix(PLASMIDFINDER_RUN.out.versions)
+        ch_versions = ch_versions.mix(PLASMIDFINDER.out.versions)
 
         ch_multiqc_files = ch_multiqc_files.mix(
-            PLASMIDFINDER_RUN.out.tsv.collect { it[1] }.ifEmpty([])
+            PLASMIDFINDER.out.tsv.collect { it[1] }.ifEmpty([])
         )
         
     }
@@ -369,7 +373,7 @@ workflow METAAMR {
     ch_abricate_results       = params.run_abricate ? ABRICATE_RUN.out.report : Channel.empty()
     ch_amrfinderplus_results  = params.run_amrfinderplus ? AMRFINDERPLUS_RUN.out.report : Channel.empty()
     ch_rgi_results            = params.run_rgi ? RGI_MAIN.out.tsv : Channel.empty()
-    ch_resfinder_results = params.run_resfinder ? RESFINDER_RUN.out.txt : Channel.empty()
+    ch_resfinder_results = params.run_resfinder ? RESFINDER_RUN.out.resfinder_results_tab : Channel.empty()
     ch_plasclass_results      = params.run_plasclass ? PLASCLASS.out.report : Channel.empty()
    
 
@@ -467,7 +471,7 @@ workflow METAAMR {
 
     // Collate and save software versions
     //
-    softwareVersionsToYAML(ch_versions)
+    softwareVersionsToYAML(ch_versions.mix(Channel.topic('versions')))
         .collectFile(
             storeDir: "${params.outdir}/pipeline_info",
             name: 'nf_core_'  + 'pipeline_software_' +  'mqc_'  + 'versions.yml',
@@ -516,15 +520,13 @@ workflow METAAMR {
     }
     
     MULTIQC (
-        ch_multiqc_files.collect(),
-        ch_multiqc_config.toList(),
-        ch_multiqc_custom_config.toList(),
-        ch_multiqc_logo.toList(),
-        [],
-        []
+        ch_multiqc_files.collect().map { files -> 
+            [[id: 'multiqc'], files, [file("$projectDir/assets/multiqc_config.yml")], [], [], []]
+        }
     )
 
-    emit:multiqc_report = MULTIQC.out.report.toList() 
+    emit:
+    multiqc_report = MULTIQC.out.report.map { meta, report -> report }.toList()
     versions       = ch_versions.ifEmpty([])               
 
 }
