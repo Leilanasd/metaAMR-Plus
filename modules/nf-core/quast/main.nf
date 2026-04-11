@@ -3,7 +3,7 @@ process QUAST {
     label 'process_medium'
 
     conda "${moduleDir}/environment.yml"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+    container "${ workflow.containerEngine == 'singularity' ?
         'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/a5/a515d04307ea3e0178af75132105cd36c87d0116c6f9daecf81650b973e870fd/data' :
         'community.wave.seqera.io/library/quast:5.3.0--755a216045b6dbdd' }"
 
@@ -19,6 +19,7 @@ process QUAST {
     tuple val(meta), path("${prefix}_misassemblies.tsv") , optional: true , emit: misassemblies
     tuple val(meta), path("${prefix}_unaligned.tsv")     , optional: true , emit: unaligned
     tuple val("${task.process}"), val('quast'), eval('quast.py --version 2>&1 | grep "QUAST" | sed \'s/^.*QUAST v//; s/ .*\$//\''), emit: versions_quast, topic: versions
+    path "versions.yml"                                        , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -42,6 +43,10 @@ process QUAST {
     [ -f  ${prefix}/contigs_reports/misassemblies_report.tsv         ] && ln -s ${prefix}/contigs_reports/misassemblies_report.tsv ${prefix}_misassemblies.tsv
     [ -f  ${prefix}/contigs_reports/unaligned_report.tsv             ] && ln -s ${prefix}/contigs_reports/unaligned_report.tsv ${prefix}_unaligned.tsv
 
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        quast: \$(quast --version | sed "s/QUAST v//g")
+    END_VERSIONS
     """
 
     stub:

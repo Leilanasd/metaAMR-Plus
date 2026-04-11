@@ -3,7 +3,7 @@ process KRONA_KTIMPORTTEXT {
     label 'process_single'
 
     conda "${moduleDir}/environment.yml"
-    container "${workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container
+    container "${workflow.containerEngine == 'singularity'
         ? 'https://depot.galaxyproject.org/singularity/krona:2.8.1--pl5321hdfd78af_1'
         : 'biocontainers/krona:2.8.1--pl5321hdfd78af_1'}"
 
@@ -13,6 +13,7 @@ process KRONA_KTIMPORTTEXT {
     output:
     tuple val(meta), path('*.html'), emit: html
     tuple val("${task.process}"), val('krona'), eval("ktImportText | grep -Po '(?<=KronaTools )[0-9.]+'"), topic: versions, emit: versions_krona
+    path "versions.yml"                                        , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -25,6 +26,10 @@ process KRONA_KTIMPORTTEXT {
         ${args} \\
         -o ${prefix}.html \\
         ${report}
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        krona: \$(ktImportText.pl 2>&1 | head -2 | tail -1 | sed "s/.*KronaTools //; s/ - .*//")
+    END_VERSIONS
     """
 
     stub:

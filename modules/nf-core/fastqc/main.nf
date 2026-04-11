@@ -3,7 +3,7 @@ process FASTQC {
     label 'process_low'
 
     conda "${moduleDir}/environment.yml"
-    container "${workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container
+    container "${workflow.containerEngine == 'singularity'
         ? 'https://depot.galaxyproject.org/singularity/fastqc:0.12.1--hdfd78af_0'
         : 'biocontainers/fastqc:0.12.1--hdfd78af_0'}"
 
@@ -14,6 +14,7 @@ process FASTQC {
     tuple val(meta), path("*.html"), emit: html
     tuple val(meta), path("*.zip"), emit: zip
     tuple val("${task.process}"), val('fastqc'), eval('fastqc --version | sed "/FastQC v/!d; s/.*v//"'), emit: versions_fastqc, topic: versions
+    path "versions.yml"                                        , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -46,6 +47,10 @@ process FASTQC {
         --threads ${task.cpus} \\
         ${fastqc_memory_arg} \\
         ${renamed_files}
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        fastqc: \$(fastqc --version | sed "/FastQC v/!d; s/.*v//")
+    END_VERSIONS
     """
 
     stub:

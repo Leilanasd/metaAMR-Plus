@@ -1,10 +1,10 @@
-include { KAIJU_KAIJU } from '../../modules/nf-core/kaiju/kaiju/main'
-include { KAIJU_KAIJU2TABLE } from '../../modules/nf-core/kaiju/kaiju2table/main'
-include { CENTRIFUGE_CENTRIFUGE } from '../../modules/nf-core/centrifuge/centrifuge/main'
-include { CENTRIFUGE_KREPORT } from '../../modules/nf-core/centrifuge/kreport/main'
-include { KAIJU_KAIJU2KRONA } from '../../modules/nf-core/kaiju/kaiju2krona/main'
-include { KRONA_KTIMPORTTEXT as KRONA_KAIJU } from '../../modules/nf-core/krona/ktimporttext/main'
-include { KRONA_KTIMPORTTEXT as KRONA_CENTRIFUGE } from '../../modules/nf-core/krona/ktimporttext/main'
+include { KAIJU_KAIJU } from '../../../modules/nf-core/kaiju/kaiju/main'
+include { KAIJU_KAIJU2TABLE } from '../../../modules/nf-core/kaiju/kaiju2table/main'
+include { CENTRIFUGE_CENTRIFUGE } from '../../../modules/nf-core/centrifuge/centrifuge/main'
+include { CENTRIFUGE_KREPORT } from '../../../modules/nf-core/centrifuge/kreport/main'
+include { KAIJU_KAIJU2KRONA } from '../../../modules/nf-core/kaiju/kaiju2krona/main'
+include { KRONA_KTIMPORTTEXT as KRONA_KAIJU } from '../../../modules/nf-core/krona/ktimporttext/main'
+include { KRONA_KTIMPORTTEXT as KRONA_CENTRIFUGE } from '../../../modules/nf-core/krona/ktimporttext/main'
 
 workflow PROFILING {
     take:

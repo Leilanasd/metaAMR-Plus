@@ -4,7 +4,7 @@ process PLASMIDFINDER {
 
     // WARN: Version information not provided by tool on CLI. Please update version string below when bumping container versions.
     conda "${moduleDir}/environment.yml"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+    container "${ workflow.containerEngine == 'singularity' ?
         'https://depot.galaxyproject.org/singularity/plasmidfinder:2.1.6--py310hdfd78af_1':
         'biocontainers/plasmidfinder:2.1.6--py310hdfd78af_1' }"
 
@@ -18,6 +18,7 @@ process PLASMIDFINDER {
     tuple val(meta), path("*-hit_in_genome_seq.fsa"), emit: genome_seq
     tuple val(meta), path("*-plasmid_seqs.fsa")     , emit: plasmid_seq
     tuple val("${task.process}"), val('plasmidfinder'), val('2.1.6'), topic: versions, emit: versions_plasmidfinder
+    path "versions.yml"                                        , emit: versions
     // WARN: Version information not provided by tool on CLI. Please update this string when bumping container versions.
 
     when:
@@ -47,6 +48,10 @@ process PLASMIDFINDER {
     mv Hit_in_genome_seq.fsa ${prefix}-hit_in_genome_seq.fsa
     mv Plasmid_seqs.fsa ${prefix}-plasmid_seqs.fsa
 
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        plasmidfinder: \$(echo 2.1.6)
+    END_VERSIONS
     """
 
     stub:

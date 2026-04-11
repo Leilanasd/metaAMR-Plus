@@ -3,7 +3,7 @@ process FILTLONG {
     label 'process_low'
 
     conda "${moduleDir}/environment.yml"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+    container "${ workflow.containerEngine == 'singularity' ?
         'https://depot.galaxyproject.org/singularity/filtlong:0.2.1--h9a82719_0' :
         'biocontainers/filtlong:0.2.1--h9a82719_0' }"
 
@@ -14,6 +14,7 @@ process FILTLONG {
     tuple val(meta), path("*.fastq.gz"), emit: reads
     tuple val(meta), path("*.log")     , emit: log
     tuple val("${task.process}"), val('filtlong'), eval('filtlong --version | sed -e "s/Filtlong v//g"'), topic: versions, emit: versions_filtlong
+    path "versions.yml"                                        , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -30,5 +31,9 @@ process FILTLONG {
         $longreads \\
         2>| >(tee ${prefix}.log >&2) \\
         | gzip -n > ${prefix}.fastq.gz
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        filtlong: \$(filtlong --version | sed -e "s/Filtlong v//g")
+    END_VERSIONS
     """
 }

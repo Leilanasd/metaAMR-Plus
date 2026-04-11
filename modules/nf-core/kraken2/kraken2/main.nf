@@ -3,7 +3,7 @@ process KRAKEN2_KRAKEN2 {
     label 'process_high'
 
     conda "${moduleDir}/environment.yml"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+    container "${ workflow.containerEngine == 'singularity' ?
         'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/0f/0f827dcea51be6b5c32255167caa2dfb65607caecdc8b067abd6b71c267e2e82/data' :
         'community.wave.seqera.io/library/kraken2_coreutils_pigz:920ecc6b96e2ba71' }"
 
@@ -19,7 +19,9 @@ process KRAKEN2_KRAKEN2 {
     tuple val(meta), path('*classifiedreads.txt')   , optional:true, emit: classified_reads_assignment
     tuple val(meta), path('*report.txt')                           , emit: report
     tuple val("${task.process}"), val('kraken2'), eval('kraken2 --version 2>&1 | head -1 | sed "s/^.*Kraken version //; s/ .*//"'), topic: versions, emit: versions_kraken2
+    path "versions.yml"                                        , emit: versions
     tuple val("${task.process}"), val('pigz'), eval('pigz --version 2>&1 | sed "s/pigz //g"'), topic: versions, emit: versions_pigz
+    path "versions.yml"                                        , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -49,6 +51,10 @@ process KRAKEN2_KRAKEN2 {
         $reads
 
     $compress_reads_command
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        kraken2: \$(kraken2 --version | head -1 | sed "s/Kraken version //")
+    END_VERSIONS
     """
 
     stub:

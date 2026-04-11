@@ -3,7 +3,7 @@ process BLAST_BLASTN {
     label 'process_medium'
 
     conda "${moduleDir}/environment.yml"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+    container "${ workflow.containerEngine == 'singularity' ?
         'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/0c/0c86cbb145786bf5c24ea7fb13448da5f7d5cd124fd4403c1da5bc8fc60c2588/data':
         'community.wave.seqera.io/library/blast:2.17.0--d4fb881691596759' }"
 
@@ -17,6 +17,7 @@ process BLAST_BLASTN {
     output:
     tuple val(meta), path('*.txt'), emit: txt
     tuple val("${task.process}"), val("blastn"), eval("blastn -version 2>&1 | sed 's/^.*blastn: //; s/ .*\$//'"), topic: versions, emit: versions_blastn
+    path "versions.yml"                                        , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -55,6 +56,10 @@ process BLAST_BLASTN {
         ${args} \\
         -out ${prefix}.txt
 
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        blast: \$(blastn -version | head -1 | sed "s/blastn: //")
+    END_VERSIONS
     """
 
     stub:

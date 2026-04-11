@@ -3,7 +3,7 @@ process MINIMAP2_INDEX {
 
     // Note: the versions here need to match the versions used in minimap2/align
     conda "${moduleDir}/environment.yml"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+    container "${ workflow.containerEngine == 'singularity' ?
         'https://depot.galaxyproject.org/singularity/minimap2:2.29--h577a1d6_0' :
         'biocontainers/minimap2:2.29--h577a1d6_0' }"
 
@@ -13,6 +13,7 @@ process MINIMAP2_INDEX {
     output:
     tuple val(meta), path("*.mmi"), emit: index
     tuple val("${task.process}"), val("minimap2"), eval("minimap2 --version"), topic: versions, emit: versions_minimap2
+    path "versions.yml"                                        , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -25,6 +26,10 @@ process MINIMAP2_INDEX {
         -d ${fasta.baseName}.mmi \\
         $args \\
         $fasta
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        minimap2: \$(minimap2 --version)
+    END_VERSIONS
     """
 
     stub:

@@ -3,7 +3,7 @@ process GUNZIP {
     label 'process_single'
 
     conda "${moduleDir}/environment.yml"
-    container "${workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container
+    container "${workflow.containerEngine == 'singularity'
         ? 'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/52/52ccce28d2ab928ab862e25aae26314d69c8e38bd41ca9431c67ef05221348aa/data'
         : 'community.wave.seqera.io/library/coreutils_grep_gzip_lbzip2_pruned:838ba80435a629f8'}"
 
@@ -13,6 +13,7 @@ process GUNZIP {
     output:
     tuple val(meta), path("${gunzip}"), emit: gunzip
     tuple val("${task.process}"), val('gunzip'), eval('gunzip --version 2>&1 | head -1 | sed "s/^.*(gzip) //; s/ Copyright.*//"'), topic: versions, emit: versions_gunzip
+    path "versions.yml"                                        , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -32,6 +33,10 @@ process GUNZIP {
         ${args} \\
         ${archive} \\
         > ${gunzip}
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        gunzip: \$(echo $(gunzip --version 2>&1) | sed "s/^.*(gzip) //; s/ Copyright.*$//")
+    END_VERSIONS
     """
 
     stub:

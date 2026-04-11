@@ -1,7 +1,7 @@
-include { HAMRONIZATION_ABRICATE } from '../../modules/nf-core/hamronization/abricate/main'
-include { HAMRONIZATION_AMRFINDERPLUS } from '../../modules/nf-core/hamronization/amrfinderplus/main'
-include { HAMRONIZATION_RGI } from '../../modules/nf-core/hamronization/rgi/main'
-include { HAMRONIZATION_SUMMARIZE } from '../../modules/nf-core/hamronization/summarize/main'
+include { HAMRONIZATION_ABRICATE } from '../../../modules/nf-core/hamronization/abricate/main'
+include { HAMRONIZATION_AMRFINDERPLUS } from '../../../modules/nf-core/hamronization/amrfinderplus/main'
+include { HAMRONIZATION_RGI } from '../../../modules/nf-core/hamronization/rgi/main'
+include { HAMRONIZATION_SUMMARIZE } from '../../../modules/nf-core/hamronization/summarize/main'
 
 process PREPARE_HAMRONIZATION_INPUTS {
     tag "${meta.id}_${tool}"

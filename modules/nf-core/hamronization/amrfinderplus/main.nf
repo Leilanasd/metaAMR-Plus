@@ -3,7 +3,7 @@ process HAMRONIZATION_AMRFINDERPLUS {
     label 'process_single'
 
     conda "${moduleDir}/environment.yml"
-    container "${workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container
+    container "${workflow.containerEngine == 'singularity'
         ? 'https://depot.galaxyproject.org/singularity/hamronization:1.1.9--pyhdfd78af_0'
         : 'biocontainers/hamronization:1.1.9--pyhdfd78af_0'}"
 
@@ -23,7 +23,7 @@ process HAMRONIZATION_AMRFINDERPLUS {
 
     script:
     def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${meta.id}"
+    def prefix = task.ext.prefix ?: "${meta.id}_amrfinderplus"
     """
     hamronize \\
         amrfinderplus \\
@@ -42,7 +42,7 @@ process HAMRONIZATION_AMRFINDERPLUS {
     """
 
     stub:
-    def prefix = task.ext.prefix ?: "${meta.id}"
+    def prefix = task.ext.prefix ?: "${meta.id}_amrfinderplus"
     """
     touch ${prefix}.${format}
 

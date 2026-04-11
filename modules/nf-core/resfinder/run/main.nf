@@ -3,7 +3,7 @@ process RESFINDER_RUN {
     label 'process_single'
 
     conda "${moduleDir}/environment.yml"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+    container "${ workflow.containerEngine == 'singularity' ?
         'https://depot.galaxyproject.org/singularity/resfinder:4.1.11--hdfd78af_0':
         'biocontainers/resfinder:4.1.11--hdfd78af_0' }"
 
@@ -40,7 +40,9 @@ process RESFINDER_RUN {
     if (fastq) {
         input = "-ifq " + fastq.join(" ")
     } else if (fasta) {
-        input = "-ifa ${fasta}"
+        def fasta_file = fasta.toString()
+        def fasta_input = fasta_file.endsWith('.gz') ? "${meta.id}_uncompressed.fasta" : fasta_file
+        input = "-ifa ${fasta_input}"
     }
 
     def db = ""
@@ -51,6 +53,10 @@ process RESFINDER_RUN {
         db = "$db -db_point ${db_point}"
     }
     """
+    if [[ "${fasta}" == *.gz ]]; then
+        gunzip -c ${fasta} > ${meta.id}_uncompressed.fasta
+    fi
+
     run_resfinder.py \\
         $args \\
         $input \\

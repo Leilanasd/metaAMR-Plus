@@ -1,7 +1,0 @@
-tool,db_name,db_params,db_path
-kaiju,kaiju_db,,/data/leila/databases/kaiju_db
-centrifuge,centrifuge_db,,/data/leila/databases/centrifuge_db
-rgi,rgi_db,,/data/leila/databases/rgi_db
-plasmidfinder,plasmidfinder_db,,/data/leila/databases/plasmidfinder_db
-resfinder,resfinder_db,,/data/leila/databases/resfinder_db
-amrfinderplus,amrfinderplus_db,,/data/leila/databases/amrfinderplus_db
