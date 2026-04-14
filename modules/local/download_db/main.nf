@@ -37,10 +37,7 @@ process DOWNLOAD_DB {
             amrfinder_update --force_update --database ${tool}_db
             TOOL_VERSION=\$(amrfinder --version 2>&1 | sed 's/^.*v//')
             ;;
-        plasmidfinder)
-            git clone https://bitbucket.org/genomicepidemiology/plasmidfinder_db.git ${tool}_db
-            TOOL_VERSION=\$(git -C ${tool}_db describe --tags --abbrev=0 || echo "unknown")
-            ;;
+        
         *)
             echo "Unknown tool: $tool"
             exit 1

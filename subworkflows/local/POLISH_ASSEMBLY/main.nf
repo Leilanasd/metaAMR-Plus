@@ -10,11 +10,9 @@ workflow POLISH_ASSEMBLY {
 
     // Ensure input assemblies are .gz compressed
     ch_prepped_assembly = ch_input.map { meta, reads, assembly_file ->
-        println "Debug: Preparing assembly for ${meta.id}"
         def final_assembly = file("${workDir}/${meta.id}.assembly.fasta.gz")
 
         if (!assembly_file.name.endsWith(".gz")) {
-            println "Debug: Compressing assembly file for ${meta.id}"
             "gzip -c ${assembly_file} > ${final_assembly}".execute().waitFor()
         } else {
             assembly_file.copyTo(final_assembly)
@@ -48,7 +46,6 @@ workflow POLISH_ASSEMBLY {
     ch_versions = ch_versions.mix(RACON.out.versions)
 
     ch_racon_gzipped = RACON.out.improved_assembly.map { meta, racon_fasta ->
-        println "Debug: Compressing Racon output for ${meta.id}"
         def racon_gz = file("${workDir}/${meta.id}.racon.fasta.gz")
 
         if (!racon_fasta.name.endsWith(".gz")) {

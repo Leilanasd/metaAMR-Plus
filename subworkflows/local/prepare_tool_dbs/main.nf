@@ -1,6 +1,5 @@
 include { DOWNLOAD_DB as RESFINDER_DB_DOWNLOAD } from '../../../modules/local/download_db/main'
 include { DOWNLOAD_DB as RGI_DB_DOWNLOAD } from '../../../modules/local/download_db/main'
-include { DOWNLOAD_DB as PLASMIDFINDER_DB_DOWNLOAD } from '../../../modules/local/download_db/main'
 include { RESFINDER_INDEX } from '../../../modules/local/resfinder_index/main'
 include { AMRFINDERPLUS_UPDATE } from '../../../modules/nf-core/amrfinderplus/update/main'
 
@@ -65,7 +64,7 @@ workflow PREPARE_TOOL_DBS {
     def csv_resfinder_db     = get_db_path_from_csv(params.databases, 'resfinder')
     def csv_rgi_db           = get_db_path_from_csv(params.databases, 'rgi')
     def csv_amrfinderplus_db = get_db_path_from_csv(params.databases, 'amrfinderplus')
-    def csv_plasmidfinder_db = get_db_path_from_csv(params.databases, 'plasmidfinder')
+    
 
     /*
      * ResFinder
@@ -116,25 +115,10 @@ workflow PREPARE_TOOL_DBS {
         ch_amrfinderplus_db_final = Channel.empty()
     }
 
-    /*
-     * PlasmidFinder
-     */
-    if (csv_plasmidfinder_db) {
-        ch_plasmidfinder_db_final = Channel.value(file(csv_plasmidfinder_db, checkIfExists: true))
-    } else if (params.plasmidfinder_db) {
-        ch_plasmidfinder_db_final = Channel.value(file(params.plasmidfinder_db, checkIfExists: true))
-    } else if (params.download_plasmidfinder_db) {
-        PLASMIDFINDER_DB_DOWNLOAD(Channel.of('plasmidfinder'))
-        ch_versions = ch_versions.mix(PLASMIDFINDER_DB_DOWNLOAD.out.versions)
-        ch_plasmidfinder_db_final = PLASMIDFINDER_DB_DOWNLOAD.out.db
-    } else {
-        ch_plasmidfinder_db_final = Channel.empty()
-    }
 
     emit:
     resfinder_db     = ch_resfinder_db_final
     rgi_db           = ch_rgi_db_final
     amrfinderplus_db = ch_amrfinderplus_db_final
-    plasmidfinder_db = ch_plasmidfinder_db_final
     versions         = ch_versions
 }

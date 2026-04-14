@@ -28,7 +28,7 @@ process KRONA_KTIMPORTTEXT {
         ${report}
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        krona: \$(ktImportText.pl 2>&1 | head -2 | tail -1 | sed "s/.*KronaTools //; s/ - .*//")
+        krona: \$(ktImportText 2>&1 | head -2 | tail -1 | sed "s/.*KronaTools //; s/ - .*//")
     END_VERSIONS
     """
 

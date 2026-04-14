@@ -20,6 +20,9 @@ include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pi
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_metaamr_pipeline/main'
 include { CENTRIFUGE_CENTRIFUGE } from '../modules/nf-core/centrifuge/centrifuge/main'
 include { CENTRIFUGE_KREPORT } from '../modules/nf-core/centrifuge/kreport/main'
+include { KRONA_KTIMPORTTEXT as KRONA_KAIJU }       from '../modules/nf-core/krona/ktimporttext/main'
+include { KRONA_KTIMPORTTEXT as KRONA_CENTRIFUGE }  from '../modules/nf-core/krona/ktimporttext/main'
+include { KAIJU_KAIJU2KRONA }                        from '../modules/nf-core/kaiju/kaiju2krona/main'
 
 
 // Check input path parameters to see if they exist
@@ -88,7 +91,6 @@ include { PREPARE_TOOL_DBS } from '../subworkflows/local/prepare_tool_dbs/main'
 include { HAMRONIZATION } from '../subworkflows/local/HAMRONIZATION/main'
 include { VALIDATE_FASTA } from '../modules/local/validate_fasta/main'
 include { PLASCLASS } from '../modules/local/plasclass/main'
-include { PLASCLASS_POSTPROCESS } from '../modules/local/plasclass_postprocess/main'
 include { PROFILING } from '../subworkflows/local/PROFILING/main'
 include { TARGET_SPECIES_AMR } from '../subworkflows/local/TARGET_SPECIES_AMR/main'
 include { COMBINE_CONTIGS_AND_SPECIES } from '../modules/local/combine_contigs_and_species/main'
@@ -276,9 +278,6 @@ workflow METAAMR {
     
         ch_versions = ch_versions.mix(ABRICATE_RUN.out.versions)
         ch_multiqc_files = ch_multiqc_files.mix(ABRICATE_RUN.out.report.map { meta, report -> report })
-        ABRICATE_RUN.out.report.view { meta, report -> 
-            "Abricate outputs for ${meta.id}: ${report.getName()}"
-        }
     }
     
     if (params.run_amrfinderplus) {
@@ -293,9 +292,6 @@ workflow METAAMR {
         )
 
         ch_versions = ch_versions.mix(AMRFINDERPLUS_RUN.out.versions)
-        AMRFINDERPLUS_RUN.out.report.view { meta, report -> 
-            "AMRFinderPlus outputs for ${meta.id}: ${report.getName()}"
-        }
         ch_multiqc_files = ch_multiqc_files.mix(AMRFINDERPLUS_RUN.out.report.collect{it[1]}.ifEmpty([]))
         
     }
@@ -315,9 +311,6 @@ workflow METAAMR {
 
         ch_versions = ch_versions.mix(RGI_MAIN.out.versions)
     
-        RGI_MAIN.out.tsv
-            .view { meta, tsv -> "RGI outputs for ${meta.id}: ${tsv.getName()}" }
-            .ifEmpty { log.warn "No output from RGI_MAIN process" }
 
         ch_multiqc_files = ch_multiqc_files.mix(
             RGI_MAIN.out.tsv.map { meta, tsv -> tsv }.ifEmpty([])
@@ -342,7 +335,7 @@ workflow METAAMR {
         log.info "Running PlasmidFinder"
 
     // Run PlasmidFinder
-        PLASMIDFINDER(ch_validated_assemblies, PREPARE_TOOL_DBS.out.plasmidfinder_db.first())
+        PLASMIDFINDER(ch_validated_assemblies)
 
         ch_versions = ch_versions.mix(PLASMIDFINDER.out.versions)
 
@@ -351,20 +344,14 @@ workflow METAAMR {
         )
         
     }
-
+     
     // Run PlasClass
     if (params.run_plasclass) {
         log.info "Running PlasClass"
-
         PLASCLASS(ch_validated_assemblies)
-
-        PLASCLASS_POSTPROCESS(PLASCLASS.out.report)
-
         ch_versions = ch_versions.mix(PLASCLASS.out.versions)
-        ch_versions = ch_versions.mix(PLASCLASS_POSTPROCESS.out.versions)
-
         ch_multiqc_files = ch_multiqc_files.mix(
-            PLASCLASS_POSTPROCESS.out.classified.collect { it[1] }.ifEmpty([])
+            PLASCLASS.out.classified.collect { it[1] }.ifEmpty([])
         )
     }
     
@@ -374,7 +361,7 @@ workflow METAAMR {
     ch_amrfinderplus_results  = params.run_amrfinderplus ? AMRFINDERPLUS_RUN.out.report : Channel.empty()
     ch_rgi_results            = params.run_rgi ? RGI_MAIN.out.tsv : Channel.empty()
     ch_resfinder_results = params.run_resfinder ? RESFINDER_RUN.out.resfinder_results_tab : Channel.empty()
-    ch_plasclass_results      = params.run_plasclass ? PLASCLASS.out.report : Channel.empty()
+    ch_plasclass_results = params.run_plasclass ? PLASCLASS.out.classified : Channel.empty()
    
 
     // Run HAMRONIZATION
@@ -400,21 +387,10 @@ workflow METAAMR {
         [meta, [assembly]]  //  
       
     }
-    ch_profiling_input.view { "Profiling input: $it" }
     
-    databases_ch = Channel.fromPath(params.databases)
-        .splitCsv(header: true, sep: ',')
-        .map { row ->
-            def db_meta = [:]
-            db_meta.tool = row.tool
-            db_meta.db_name = row.db_name
-            db_meta.db_params = row.db_params
-            [db_meta, file(row.db_path)]
-        }
-
     PROFILING(
         ch_profiling_input,
-        databases_ch
+        ch_databases
     )
     ch_versions = ch_versions.mix(PROFILING.out.versions)
     ch_multiqc_files = ch_multiqc_files.mix(PROFILING.out.multiqc_files.map { it[1] }.ifEmpty([]))

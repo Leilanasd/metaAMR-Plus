@@ -4,13 +4,12 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 include { CENTRIFUGE_CENTRIFUGE } from '../../../modules/nf-core/centrifuge/centrifuge/main'
-include { CENTRIFUGE_KREPORT } from '../../../modules/nf-core/centrifuge/kreport/main'
+include { CENTRIFUGE_KREPORT    } from '../../../modules/nf-core/centrifuge/kreport/main'
 include { FILTER_READS_BY_SPECIES } from '../../../modules/local/filter_reads_by_species/main'
-include { EXTRACT_FILTERED_READS } from '../../../modules/local/extract_filtered_reads/main'
-include { RESFINDER_WITH_SPECIES } from '../../../modules/local/resfinder_with_species/main'
+include { EXTRACT_FILTERED_READS  } from '../../../modules/local/extract_filtered_reads/main'
+include { RESFINDER_WITH_SPECIES  } from '../../../modules/local/resfinder_with_species/main'
 
 workflow TARGET_SPECIES_AMR {
-
     take:
     reads
     databases
@@ -18,8 +17,7 @@ workflow TARGET_SPECIES_AMR {
     target_species
 
     main:
-
-    ch_versions = Channel.empty()
+    ch_versions      = Channel.empty()
     ch_multiqc_files = Channel.empty()
 
     /*
@@ -43,7 +41,7 @@ workflow TARGET_SPECIES_AMR {
     ch_centrifuge_input = ch_centrifuge_reads.combine(ch_centrifuge_db)
 
     /*
-     * STEP 4 — Run Centrifuge directly
+     * STEP 4 — Run Centrifuge
      */
     CENTRIFUGE_CENTRIFUGE(
         ch_centrifuge_input.map { meta, input_reads, db -> [meta, input_reads] },
@@ -51,19 +49,17 @@ workflow TARGET_SPECIES_AMR {
         false,
         false
     )
-
-    ch_versions = ch_versions.mix(CENTRIFUGE_CENTRIFUGE.out.versions)
+    ch_versions      = ch_versions.mix(CENTRIFUGE_CENTRIFUGE.out.versions)
     ch_multiqc_files = ch_multiqc_files.mix(CENTRIFUGE_CENTRIFUGE.out.report)
 
     /*
-     * STEP 5 — Optional kreport generation
+     * STEP 5 — Generate kreport
      */
     CENTRIFUGE_KREPORT(
         CENTRIFUGE_CENTRIFUGE.out.results,
         ch_centrifuge_db.first()
     )
-
-    ch_versions = ch_versions.mix(CENTRIFUGE_KREPORT.out.versions.first())
+    ch_versions      = ch_versions.mix(CENTRIFUGE_KREPORT.out.versions.first())
     ch_multiqc_files = ch_multiqc_files.mix(CENTRIFUGE_KREPORT.out.kreport)
 
     /*
@@ -74,8 +70,7 @@ workflow TARGET_SPECIES_AMR {
         CENTRIFUGE_CENTRIFUGE.out.report.join(CENTRIFUGE_CENTRIFUGE.out.results),
         target_species
     )
-
-    ch_filtered_ids = FILTER_READS_BY_SPECIES.out.filtered_read_ids
+    ch_filtered_ids   = FILTER_READS_BY_SPECIES.out.filtered_read_ids
     ch_species_summary = FILTER_READS_BY_SPECIES.out.species_summary
 
     /*
@@ -84,7 +79,6 @@ workflow TARGET_SPECIES_AMR {
     EXTRACT_FILTERED_READS(
         ch_filtered_ids.join(reads)
     )
-
     ch_filtered_reads = EXTRACT_FILTERED_READS.out.filtered_reads
 
     /*
@@ -94,14 +88,13 @@ workflow TARGET_SPECIES_AMR {
         .join(ch_species_summary)
         .combine(resfinder_db)
 
-    RESFINDER_WITH_SPECIES(ch_resfinder_input)
-
+    RESFINDER_WITH_SPECIES(ch_resfinder_input, target_species)
     ch_versions = ch_versions.mix(RESFINDER_WITH_SPECIES.out.versions)
 
     emit:
-    filtered_reads  = ch_filtered_reads
-    species_summary = ch_species_summary
-    resfinder       = RESFINDER_WITH_SPECIES.out.amr_results
-    multiqc_files   = ch_multiqc_files
-    versions        = ch_versions
+    filtered_reads   = ch_filtered_reads
+    species_summary  = ch_species_summary
+    resfinder        = RESFINDER_WITH_SPECIES.out.amr_results
+    multiqc_files    = ch_multiqc_files
+    versions         = ch_versions
 }

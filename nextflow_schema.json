@@ -231,16 +231,8 @@
                     "type": ["string", "null"],
                     "default": null,
                     "description": "Path to Abricate database"
-                },
-                "plasmidfinder_db": {
-                    "type": ["string", "null"],
-                    "default": null,
-                    "description": "Path to PlasmidFinder database"
-                },
-                "download_plasmidfinder_db": {
-                    "type": "boolean",
-                    "description": "Download PlasmidFinder database"
                 }
+                
             }
         },
 
@@ -294,7 +286,8 @@
                 "amrfinderplus_version": {
                     "type": "string",
                     "default": "unknown",
-                    "description": "Version of AMRFinderPlus to use"
+                    "description": "Version of AMRFinderPlus to use",
+                    "hidden": true
                 },
                 "run_abricate": {
                     "type": "boolean",

@@ -32,7 +32,7 @@ process HAMRONIZATION_AMRFINDERPLUS {
         --format ${format} \\
         --analysis_software_version ${software_version} \\
         --reference_database_version ${reference_db_version} \\
-        --input_file_name ${prefix} \\
+        --input_file_name ${meta.id} \\
         > ${prefix}.${format}
 
     cat <<-END_VERSIONS > versions.yml

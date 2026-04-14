@@ -59,7 +59,6 @@ def get_species_taxids(report_file, species_list):
 
     return selected_taxids, taxid_to_name
 
-
 def extract_reads(results_file, taxid_set, taxid_to_name, output_file, summary_file):
     species_read_counts = defaultdict(int)
 
@@ -68,8 +67,11 @@ def extract_reads(results_file, taxid_set, taxid_to_name, output_file, summary_f
         with open(output_file, 'w') as out:
             pass
         with open(summary_file, 'w') as summary:
-            summary.write("TaxID\tSpecies\tCount\tStatus\n")
-            summary.write("NA\tNA\t0\tAbsent\n")
+            summary.write("# Confidence: High = >=10 reads, Low = 1-9 reads\n")
+            summary.write("# Low confidence detections may represent misclassification or sequencing noise\n")
+            summary.write("#\n")
+            summary.write("TaxID\tSpecies\tCount\tStatus\tConfidence\n")
+            summary.write("NA\tNA\t0\tAbsent\tNA\n")
         return
 
     with open(results_file) as infile, open(output_file, 'w') as out:
@@ -77,27 +79,25 @@ def extract_reads(results_file, taxid_set, taxid_to_name, output_file, summary_f
             parts = line.strip().split('\t')
             if len(parts) < 3:
                 continue
-
-            # Skip header if present
             if parts[0].lower() in {"readid", "read_id", "name"}:
                 continue
-
             read_id = parts[0]
             taxid = parts[2]
-
             if taxid in taxid_set:
                 out.write(f"{read_id}\t{taxid}\n")
                 species_read_counts[taxid] += 1
 
     with open(summary_file, 'w') as summary:
-        summary.write("TaxID\tSpecies\tCount\tStatus\n")
+        summary.write("# Confidence: High = >=10 reads, Low = 1-9 reads\n")
+        summary.write("# Low confidence detections may represent misclassification or sequencing noise\n")
+        summary.write("#\n")
+        summary.write("TaxID\tSpecies\tCount\tStatus\tConfidence\n")
         for taxid in sorted(taxid_set):
             name = taxid_to_name.get(taxid, "Unknown")
             count = species_read_counts.get(taxid, 0)
             status = "Present" if count > 0 else "Absent"
-            summary.write(f"{taxid}\t{name}\t{count}\t{status}\n")
-
-
+            confidence = "High" if count >= 10 else "Low"
+            summary.write(f"{taxid}\t{name}\t{count}\t{status}\t{confidence}\n")
 if __name__ == "__main__":
     if len(sys.argv) != 6:
         print("Usage:", file=sys.stderr)
@@ -113,13 +113,6 @@ if __name__ == "__main__":
     summary_file = sys.argv[4]
     species_input = sys.argv[5]
     species_list = [s.strip() for s in species_input.split(',') if s.strip()]
-
-    print("Processing with parameters:", file=sys.stderr)
-    print(f"Report file: {report_file}", file=sys.stderr)
-    print(f"Results file: {results_file}", file=sys.stderr)
-    print(f"Output reads file: {output_file}", file=sys.stderr)
-    print(f"Summary file: {summary_file}", file=sys.stderr)
-    print(f"Species list: {species_input}", file=sys.stderr)
 
     selected_taxids, taxid_to_name = get_species_taxids(report_file, species_list)
     extract_reads(results_file, selected_taxids, taxid_to_name, output_file, summary_file)
