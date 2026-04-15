@@ -21,7 +21,11 @@ workflow META_ASSEMBLY {
 
    
     // for assembly quality evaluation
-    QUAST(ch_assembly, [[],[]], [[],[]])
+    ch_quast_results = Channel.empty()
+    if (!params.skip_quast) {
+        QUAST(ch_assembly, [[],[]], [[],[]])
+        ch_quast_results = QUAST.out.results
+    }
     // topic channel: QUAST versions
 
 
@@ -31,6 +35,7 @@ workflow META_ASSEMBLY {
     emit:
     assembly      = ch_assembly
     versions      = ch_versions
-    quast_results = QUAST.out.results      
+    quast_results = ch_quast_results
+    
     
 }

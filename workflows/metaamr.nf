@@ -171,8 +171,7 @@ workflow METAAMR {
 
         ch_clipped_reads = PORECHOP_PORECHOP.out.reads
             .map { meta, reads ->
-                def porechopped_reads = reads.findAll { it.name.contains('porechopped') }
-                [ meta + [single_end: true], porechopped_reads ]
+                [ meta + [single_end: true], reads ]
             }
 
         FILTLONG(ch_clipped_reads.map { meta, reads -> [ meta, [], reads ] })

@@ -82,6 +82,7 @@ workflow PREPARE_TOOL_DBS {
                 def files = db_files instanceof List ? db_files : [db_files]
                 files[0].parent
             }
+            .first()
     } else {
         ch_resfinder_db_final = Channel.empty()
     }
@@ -95,7 +96,7 @@ workflow PREPARE_TOOL_DBS {
         ch_rgi_db_final = Channel.value(file(params.rgi_db, checkIfExists: true))
     } else if (params.download_rgi_db) {
         RGI_DB_DOWNLOAD(Channel.of('rgi'))
-        ch_rgi_db_final = RGI_DB_DOWNLOAD.out.db
+        ch_rgi_db_final = RGI_DB_DOWNLOAD.out.db.first()
     } else {
         ch_rgi_db_final = Channel.empty()
     }
@@ -110,7 +111,7 @@ workflow PREPARE_TOOL_DBS {
     } else if (params.download_amrfinderplus_db) {
         AMRFINDERPLUS_UPDATE()
         ch_versions = ch_versions.mix(Channel.topic('versions'))
-        ch_amrfinderplus_db_final = AMRFINDERPLUS_UPDATE.out.db
+        ch_amrfinderplus_db_final = AMRFINDERPLUS_UPDATE.out.db.first()
     } else {
         ch_amrfinderplus_db_final = Channel.empty()
     }
