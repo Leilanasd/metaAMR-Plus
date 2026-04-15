@@ -107,6 +107,41 @@ workflow METAAMR {
         """
     }
 
+
+    // Host removal requires a reference genome
+    if (params.perform_hostremoval && !params.hostremoval_reference) {
+        error """
+        --perform_hostremoval requires a reference genome.
+        Please provide:
+            --hostremoval_reference /path/to/reference.fa
+        Optionally also provide a pre-built index:
+            --hostremoval_index /path/to/index
+        """
+    }
+
+    // Profiling requires at least one tool
+    if (params.run_profiling && !params.run_centrifuge && !params.run_kaiju) {
+        log.warn "WARNING: --run_profiling enabled but neither --run_centrifuge nor --run_kaiju specified. No profiling will be performed."
+    }
+    if (params.run_centrifuge && !params.databases) {
+        error """
+        --run_centrifuge requires a Centrifuge database.
+        Please provide a databases CSV file with a centrifuge entry:
+            --databases database.csv
+        Where database.csv contains a line like:
+            centrifuge,centrifuge_db,,/path/to/centrifuge_db
+        """
+    }
+    if (params.run_kaiju && !params.databases) {
+        error """
+        --run_kaiju requires a Kaiju database.
+        Please provide a databases CSV file with a kaiju entry:
+            --databases database.csv
+        Where database.csv contains a line like:
+            kaiju,kaiju_db,,/path/to/kaiju_db
+        """
+    }
+
     ch_versions      = Channel.empty()
     ch_multiqc_files = Channel.empty()
     // Note: .first() is applied to per-sample module version outputs throughout this workflow.
