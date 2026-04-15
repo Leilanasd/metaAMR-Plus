@@ -3,6 +3,8 @@ include { KAIJU_KAIJU2TABLE }                         from '../../../modules/nf-
 include { KAIJU_KAIJU2KRONA }                         from '../../../modules/nf-core/kaiju/kaiju2krona/main'
 include { CENTRIFUGE_CENTRIFUGE }                     from '../../../modules/nf-core/centrifuge/centrifuge/main'
 include { CENTRIFUGE_KREPORT }                        from '../../../modules/nf-core/centrifuge/kreport/main'
+include { KRONA_KTIMPORTTEXT as KRONA_KAIJU }         from '../../../modules/nf-core/krona/ktimporttext/main'
+include { KRONA_KTIMPORTTEXT as KRONA_CENTRIFUGE }    from '../../../modules/nf-core/krona/ktimporttext/main'
 
 workflow PROFILING {
     take:
@@ -18,6 +20,7 @@ workflow PROFILING {
     ch_centrifuge_report    = Channel.empty()
     ch_centrifuge_results   = Channel.empty()
     ch_centrifuge_kreport   = Channel.empty()
+    ch_krona_html           = Channel.empty()
 
     // Prepare input for both FASTQ and FASTA compatibility
     ch_profiling_input = reads_ch.map { meta, reads ->
@@ -46,6 +49,18 @@ workflow PROFILING {
         )
         ch_versions      = ch_versions.mix(KAIJU_KAIJU2TABLE.out.versions)
         ch_multiqc_files = ch_multiqc_files.mix(KAIJU_KAIJU2TABLE.out.summary)
+
+        if (!params.skip_krona) {
+            KAIJU_KAIJU2KRONA(
+                KAIJU_KAIJU.out.results,
+                ch_kaiju_db.first()
+            )
+            KRONA_KAIJU(
+                KAIJU_KAIJU2KRONA.out.txt.map { meta, txt -> [meta + [tool: 'kaiju'], txt] }
+            )
+            ch_krona_html = ch_krona_html.mix(KRONA_KAIJU.out.html)
+            ch_versions   = ch_versions.mix(KRONA_KAIJU.out.versions)
+        }
     }
 
     // Centrifuge
@@ -73,6 +88,14 @@ workflow PROFILING {
         ch_raw_profiles       = ch_raw_profiles.mix(CENTRIFUGE_KREPORT.out.kreport)
         ch_multiqc_files      = ch_multiqc_files.mix(CENTRIFUGE_KREPORT.out.kreport)
         ch_centrifuge_kreport = CENTRIFUGE_KREPORT.out.kreport
+
+        if (!params.skip_krona) {
+            KRONA_CENTRIFUGE(
+                CENTRIFUGE_KREPORT.out.kreport.map { meta, txt -> [meta + [tool: 'centrifuge'], txt] }
+            )
+            ch_krona_html = ch_krona_html.mix(KRONA_CENTRIFUGE.out.html)
+            ch_versions   = ch_versions.mix(KRONA_CENTRIFUGE.out.versions)
+        }
     }
 
     emit:
@@ -84,4 +107,5 @@ workflow PROFILING {
     centrifuge_results   = ch_centrifuge_results
     centrifuge_kreport   = ch_centrifuge_kreport
     kaiju_results        = ch_kaiju_results
+    krona_html           = ch_krona_html
 }

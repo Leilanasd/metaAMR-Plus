@@ -3,77 +3,20 @@
     IMPORT MODULES / SUBWORKFLOWS / FUNCTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
+
 include { FASTQC                 } from '../modules/nf-core/fastqc/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
 include { PORECHOP_PORECHOP      } from '../modules/nf-core/porechop/main'
 include { FILTLONG               } from '../modules/nf-core/filtlong/main'
-include { RESFINDER_RUN } from '../modules/nf-core/resfinder/run/main'
-include { AMRFINDERPLUS_RUN } from '../modules/nf-core/amrfinderplus/run/main' 
-include { AMRFINDERPLUS_UPDATE } from '../modules/nf-core/amrfinderplus/update/main' 
-include { ABRICATE_RUN } from '../modules/nf-core/abricate/run/main' 
-include { RGI_CARDANNOTATION } from '../modules/nf-core/rgi/cardannotation/main' 
-include { RGI_MAIN } from '../modules/nf-core/rgi/main/main' 
-include { PLASMIDFINDER } from '../modules/nf-core/plasmidfinder/main'
+include { RESFINDER_RUN          } from '../modules/nf-core/resfinder/run/main'
+include { AMRFINDERPLUS_RUN      } from '../modules/nf-core/amrfinderplus/run/main'
+include { ABRICATE_RUN           } from '../modules/nf-core/abricate/run/main'
+include { RGI_MAIN               } from '../modules/nf-core/rgi/main/main'
+include { PLASMIDFINDER          } from '../modules/nf-core/plasmidfinder/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_metaamr_pipeline/main'
-include { CENTRIFUGE_CENTRIFUGE } from '../modules/nf-core/centrifuge/centrifuge/main'
-include { CENTRIFUGE_KREPORT } from '../modules/nf-core/centrifuge/kreport/main'
-include { KRONA_KTIMPORTTEXT as KRONA_KAIJU }       from '../modules/nf-core/krona/ktimporttext/main'
-include { KRONA_KTIMPORTTEXT as KRONA_CENTRIFUGE }  from '../modules/nf-core/krona/ktimporttext/main'
-include { KAIJU_KAIJU2KRONA }                        from '../modules/nf-core/kaiju/kaiju2krona/main'
-
-
-// Check input path parameters to see if they exist
-
-def checkPathParamList = [ params.input, 
-                           params.hostremoval_index,
-                           params.hostremoval_reference,
-                         ]
-for (param in checkPathParamList) { if (param) { file(param, checkIfExists: true) } }
-
-// Check mandatory parameters
-
-if (params.input) {
-    ch_input = Channel.fromPath(params.input)
-                      .splitCsv(header:true, sep:',')
-                      .map { row -> 
-                          def meta = [id: row.sample, single_end: true]
-                          def reads = file(row.fastq_1, checkIfExists: true)
-                          return [meta, reads]
-                      }
-} else {
-    error("Input samplesheet not specified")
-}
-
-// Check if databases file is provided and create a channel
-ch_databases = params.databases ? Channel.fromPath(params.databases)
-    .splitCsv(header:true, sep:',')
-    .map { row -> 
-        def meta = [:]
-        meta.tool = row.tool
-        meta.db_name = row.db_name
-        meta.db_params = row.db_params
-        [ meta, file(row.db_path) ]
-    } : Channel.empty()
-
-// Log information about databases
-if (params.databases) {
-    log.info "Using provided database file: ${params.databases}"
-} else {
-    log.info "No database file provided. Tools will use default databases or prepare them as needed."
-}
-
-
-if (params.hostremoval_reference) { 
-    ch_reference = file(params.hostremoval_reference) 
-}
-if (params.hostremoval_index) { 
-    ch_reference_index = file(params.hostremoval_index) 
-} else { 
-    ch_reference_index = [] 
-}
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -81,19 +24,43 @@ if (params.hostremoval_index) {
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-//
-// SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
-//
-include {READS_HOSTREMOVAL       } from '../subworkflows/local/HOSTREMOVAL/main'
-include {META_ASSEMBLY      } from '../subworkflows/local/ASSEMBLY/main'
-include {POLISH_ASSEMBLY    } from '../subworkflows/local/POLISH_ASSEMBLY/main'
-include { PREPARE_TOOL_DBS } from '../subworkflows/local/prepare_tool_dbs/main'
-include { HAMRONIZATION } from '../subworkflows/local/HAMRONIZATION/main'
-include { VALIDATE_FASTA } from '../modules/local/validate_fasta/main'
-include { PLASCLASS } from '../modules/local/plasclass/main'
-include { PROFILING } from '../subworkflows/local/PROFILING/main'
-include { TARGET_SPECIES_AMR } from '../subworkflows/local/TARGET_SPECIES_AMR/main'
+include { READS_HOSTREMOVAL          } from '../subworkflows/local/HOSTREMOVAL/main'
+include { META_ASSEMBLY              } from '../subworkflows/local/ASSEMBLY/main'
+include { POLISH_ASSEMBLY            } from '../subworkflows/local/POLISH_ASSEMBLY/main'
+include { PREPARE_TOOL_DBS           } from '../subworkflows/local/prepare_tool_dbs/main'
+include { HAMRONIZATION              } from '../subworkflows/local/HAMRONIZATION/main'
+include { VALIDATE_FASTA             } from '../modules/local/validate_fasta/main'
+include { PLASCLASS                  } from '../modules/local/plasclass/main'
+include { PROFILING                  } from '../subworkflows/local/PROFILING/main'
+include { TARGET_SPECIES_AMR         } from '../subworkflows/local/TARGET_SPECIES_AMR/main'
 include { COMBINE_CONTIGS_AND_SPECIES } from '../modules/local/combine_contigs_and_species/main'
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    VALIDATE INPUTS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+def checkPathParamList = [
+    params.input,
+    params.hostremoval_index,
+    params.hostremoval_reference,
+]
+for (param in checkPathParamList) { if (param) { file(param, checkIfExists: true) } }
+
+ch_databases = params.databases
+    ? Channel.fromPath(params.databases)
+        .splitCsv(header: true, sep: ',')
+        .map { row ->
+            def meta = [tool: row.tool, db_name: row.db_name, db_params: row.db_params]
+            [ meta, file(row.db_path) ]
+        }
+    : Channel.empty()
+
+if (params.hostremoval_reference) {
+    ch_reference = file(params.hostremoval_reference)
+}
+ch_reference_index = params.hostremoval_index ? file(params.hostremoval_index) : []
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -104,18 +71,15 @@ include { COMBINE_CONTIGS_AND_SPECIES } from '../modules/local/combine_contigs_a
 workflow METAAMR {
 
     take:
-    ch_samplesheet 
-    
+    ch_samplesheet
 
     main:
-    /*
- * Validate assembly requirements
- * Some tools require assembled contigs
- */
+
+    // Validate that assembly is enabled when assembly-dependent tools are requested
     def assembly_required = (
-        params.run_rgi ||
+        params.run_rgi          ||
         params.run_amrfinderplus ||
-        params.run_abricate ||
+        params.run_abricate     ||
         params.run_plasmidfinder ||
         params.run_plasclass
     )
@@ -124,386 +88,347 @@ workflow METAAMR {
         error """
         Selected tool(s) require assembled contigs, but --perform_assembly was not enabled.
 
-        Please rerun the pipeline with:
+        Please rerun with:
             --perform_assembly
 
         Tools requiring assembly:
-            RGI
-            AMRFinderPlus
-            Abricate
-            PlasmidFinder
-            PlasClass
+            RGI, AMRFinderPlus, Abricate, PlasmidFinder, PlasClass
         """
     }
 
-    ch_versions = Channel.empty()
-    ch_multiqc_files = Channel.empty()
-   
+    // Target species mode is read-based and incompatible with assembly
+    if (params.target_species && params.perform_assembly) {
+        error """
+        --target_species is read-based and cannot be used with --perform_assembly.
 
-    
+        Please disable:
+            --perform_assembly
+            --perform_polish_assembly
+        """
+    }
+
+    ch_versions      = Channel.empty()
+    ch_multiqc_files = Channel.empty()
+    // Note: .first() is applied to per-sample module version outputs throughout this workflow.
+    // This emits exactly one versions.yml entry per tool regardless of sample count,
+    // preventing duplicate rows in the MultiQC software versions table.
+    // Subworkflows (READS_HOSTREMOVAL, META_ASSEMBLY, etc.) deduplicate versions internally
+    // so .first() is not needed on their .out.versions.
+
     // Prepare tool-specific databases
     PREPARE_TOOL_DBS()
     ch_versions = ch_versions.mix(PREPARE_TOOL_DBS.out.versions)
-    
-    def ch_rgi_db_final = PREPARE_TOOL_DBS.out.rgi_db
-    //
-    // MODULE: Run FastQC
-    //
-    if (params.run_fastqc) {
-        FASTQC(
-            ch_samplesheet
-        )
-        ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
-        // topic channel: FASTQC versions
-    }
-    //
-    // MODULE: Run PORECHOPS & FILTLONG
-    //
-    
-    if (params.perform_trim) {
-        PORECHOP_PORECHOP(
-            ch_samplesheet
-        )
-        ch_clipped_reads = PORECHOP_PORECHOP.out.reads
-            .map { meta, reads -> 
-                def porechopped_reads = reads.findAll { it.name.contains('porechopped') } 
-                [ meta + [single_end: true], porechopped_reads ] }
-    
-        ch_processed_reads = FILTLONG ( ch_clipped_reads.map { meta, reads -> [ meta, [], reads ] } ).reads
 
-        ch_versions = ch_versions.mix(PORECHOP_PORECHOP.out.versions.first())
-        // topic channel: FILTLONG versions
-        ch_multiqc_files = ch_multiqc_files.mix(
-            FILTLONG.out.log
-                .map { meta, log -> log }
-                .ifEmpty([])
-        )
-        ch_multiqc_files = ch_multiqc_files.mix( PORECHOP_PORECHOP.out.log.map{ it[1] } )
+    //
+    // MODULE: FastQC
+    //
+    if (!params.skip_fastqc) {
+        FASTQC(ch_samplesheet)
+        ch_versions      = ch_versions.mix(FASTQC.out.versions.first())
+        ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect { it[1] })
+    }
+
+    //
+    // MODULE: Porechop + Filtlong (adapter trimming and quality filtering)
+    //
+    if (params.perform_trim) {
+        PORECHOP_PORECHOP(ch_samplesheet)
+
+        ch_clipped_reads = PORECHOP_PORECHOP.out.reads
+            .map { meta, reads ->
+                def porechopped_reads = reads.findAll { it.name.contains('porechopped') }
+                [ meta + [single_end: true], porechopped_reads ]
+            }
+
+        FILTLONG(ch_clipped_reads.map { meta, reads -> [ meta, [], reads ] })
+        ch_processed_reads = FILTLONG.out.reads
+
+        ch_versions      = ch_versions.mix(PORECHOP_PORECHOP.out.versions.first())
+        ch_versions      = ch_versions.mix(FILTLONG.out.versions.first())
+        ch_multiqc_files = ch_multiqc_files.mix(PORECHOP_PORECHOP.out.log.map { it[1] })
+        ch_multiqc_files = ch_multiqc_files.mix(FILTLONG.out.log.map { it[1] }.ifEmpty([]))
     } else {
         ch_processed_reads = ch_samplesheet
     }
-    
-    /*
-        SUBWORKFLOW: HOST REMOVAL
-    */
-    if ( params.perform_hostremoval ) {
-        ch_hostremoved = READS_HOSTREMOVAL(
-            ch_processed_reads, 
-            ch_reference,   
-            ch_reference_index         
-        ).reads
-        ch_versions = ch_versions.mix(READS_HOSTREMOVAL.out.versions)
+
+    //
+    // SUBWORKFLOW: Host removal
+    //
+    if (params.perform_hostremoval) {
+        READS_HOSTREMOVAL(ch_processed_reads, ch_reference, ch_reference_index)
+        ch_hostremoved = READS_HOSTREMOVAL.out.reads
+        ch_versions    = ch_versions.mix(READS_HOSTREMOVAL.out.versions)
     } else {
         ch_hostremoved = ch_processed_reads
     }
-  
 
-    /*
-    SUBWORKFLOW: ASSEMBLY
-    */
-
-    if ( params.perform_assembly) {
-        ch_assembly = META_ASSEMBLY(ch_hostremoved).assembly   
+    //
+    // SUBWORKFLOW: Assembly
+    //
+    if (params.perform_assembly) {
+        META_ASSEMBLY(ch_hostremoved)
+        ch_assembly = META_ASSEMBLY.out.assembly
+        ch_quast    = META_ASSEMBLY.out.quast_results
         ch_versions = ch_versions.mix(META_ASSEMBLY.out.versions)
-        ch_quast = META_ASSEMBLY.out.quast_results 
     } else {
         ch_assembly = ch_hostremoved
-        ch_quast = Channel.empty()
+        ch_quast    = Channel.empty()
     }
 
-   // Polish assembly 
+    //
+    // SUBWORKFLOW: Assembly polishing
+    //
     if (params.perform_polish_assembly && params.perform_assembly) {
-        ch_polish_input = ch_hostremoved.join(ch_assembly).map { meta, reads, assembly ->
-            [meta, reads instanceof List ? reads[0] : reads, assembly instanceof List ? assembly[0] : assembly]
-        }
+        ch_polish_input = ch_hostremoved
+            .join(ch_assembly)
+            .map { meta, reads, assembly ->
+                [
+                    meta,
+                    reads instanceof List ? reads[0] : reads,
+                    assembly instanceof List ? assembly[0] : assembly
+                ]
+            }
         POLISH_ASSEMBLY(ch_polish_input)
-        ch_final_polished_assembly = POLISH_ASSEMBLY.out.polished_assembly_1
-        ch_versions = ch_versions.mix(POLISH_ASSEMBLY.out.versions)
-    } else if (params.perform_polish_assembly && !params.perform_assembly) {
-        log.warn "Assembly polishing was requested (--perform_polish_assembly) but --perform_assembly is not enabled. Skipping polishing."
-        ch_final_polished_assembly = ch_assembly
+        ch_final_assembly = POLISH_ASSEMBLY.out.polished_assembly_1
+        ch_versions       = ch_versions.mix(POLISH_ASSEMBLY.out.versions)
     } else {
-        ch_final_polished_assembly = ch_assembly
+        if (params.perform_polish_assembly && !params.perform_assembly) {
+            log.warn "Assembly polishing requested (--perform_polish_assembly) but --perform_assembly is not enabled. Skipping."
+        }
+        ch_final_assembly = ch_assembly
     }
 
-
+    //
+    // MODULE: ResFinder
+    //
     if (params.run_resfinder) {
-        log.info "Running ResFinder"
+        // Select best available input: polished assembly > assembly > host-removed > trimmed reads
+        ch_resfinder_input = params.perform_polish_assembly ? ch_final_assembly
+                           : params.perform_assembly        ? ch_assembly
+                           : params.perform_hostremoval     ? ch_hostremoved
+                           : ch_processed_reads
 
-    // Use polished assembly if available, otherwise fallback
-    ch_resfinder_input = params.perform_polish_assembly ? ch_final_polished_assembly
-                         : params.perform_assembly ? ch_assembly
-                         : params.perform_hostremoval ? ch_hostremoved
-                         : ch_processed_reads  // Use processed reads if nothing else
-
-    // Ensure correct format handling (FASTQ vs. FASTA)
-    ch_resfinder_input = ch_resfinder_input.map { meta, files -> 
-        def isFastq = files.any { file ->
-            file.name.toLowerCase().endsWith('.fastq') || file.name.toLowerCase().endsWith('.fastq.gz')
-        }
-        def fastq = isFastq ? files : []
-        def fasta = isFastq ? [] : files
-        return [meta, fastq, fasta]
-    }
-
-    // Combine with ResFinder database
-    ch_resfinder_input = ch_resfinder_input
-        .combine(PREPARE_TOOL_DBS.out.resfinder_db)
-        .map { meta, fastq, fasta, db -> 
-            return [meta, fastq, fasta, db, []]  // Maintain correct argument structure
+        // Route input to correct FASTQ or FASTA argument slot
+        ch_resfinder_input = ch_resfinder_input.map { meta, files ->
+            def fileList = files instanceof List ? files : [files]
+            def isFastq  = fileList.any { f ->
+                f.name.toLowerCase().endsWith('.fastq') || f.name.toLowerCase().endsWith('.fastq.gz')
+            }
+            [ meta, isFastq ? fileList : [], isFastq ? [] : fileList ]
         }
 
-    // Run ResFinder
         RESFINDER_RUN(
             ch_resfinder_input,
             [],
             PREPARE_TOOL_DBS.out.resfinder_db
         )
-
-    // Capture versions & outputs
-        ch_versions = ch_versions.mix(RESFINDER_RUN.out.versions.first())
-        ch_resfinder = RESFINDER_RUN.out.resfinder_results_tab
+        ch_versions          = ch_versions.mix(RESFINDER_RUN.out.versions.first())
+        ch_resfinder_results = RESFINDER_RUN.out.resfinder_results_tab
+    } else {
+        ch_resfinder_results = Channel.empty()
     }
-    
+
+    //
+    // MODULE: Abricate
+    //
     if (params.run_abricate) {
-      
-        log.info "Running Abricate"
-
-        ch_abricate_input = ch_final_polished_assembly
-        
-        ABRICATE_RUN(
-            ch_abricate_input,
-            params.arg_abricate_db
-        )
-    
-        ch_versions = ch_versions.mix(ABRICATE_RUN.out.versions)
-        ch_multiqc_files = ch_multiqc_files.mix(ABRICATE_RUN.out.report.map { meta, report -> report })
+        ABRICATE_RUN(ch_final_assembly, params.arg_abricate_db)
+        ch_versions          = ch_versions.mix(ABRICATE_RUN.out.versions.first())
+        ch_abricate_results  = ABRICATE_RUN.out.report
+        ch_multiqc_files     = ch_multiqc_files.mix(ch_abricate_results.map { it[1] })
+    } else {
+        ch_abricate_results = Channel.empty()
     }
-    
+
+    //
+    // MODULE: AMRFinderPlus
+    //
     if (params.run_amrfinderplus) {
-        log.info "Running AMRFinderPlus"
-
-        ch_amrfinderplus_input = ch_final_polished_assembly
-        
         AMRFINDERPLUS_RUN(
-            ch_amrfinderplus_input,
-            PREPARE_TOOL_DBS.out.amrfinderplus_db,
-            
+            ch_final_assembly,
+            PREPARE_TOOL_DBS.out.amrfinderplus_db
         )
-
-        ch_versions = ch_versions.mix(AMRFINDERPLUS_RUN.out.versions)
-        ch_multiqc_files = ch_multiqc_files.mix(AMRFINDERPLUS_RUN.out.report.collect{it[1]}.ifEmpty([]))
-        
+        ch_versions             = ch_versions.mix(AMRFINDERPLUS_RUN.out.versions.first())
+        ch_amrfinderplus_results = AMRFINDERPLUS_RUN.out.report
+        ch_multiqc_files        = ch_multiqc_files.mix(ch_amrfinderplus_results.collect { it[1] }.ifEmpty([]))
+    } else {
+        ch_amrfinderplus_results = Channel.empty()
     }
 
-
+    //
+    // MODULE: RGI
+    //
     if (params.run_rgi) {
-        log.info "Running RGI"
-
-        ch_rgi_input = ch_final_polished_assembly
-            .map { meta, assembly -> [ meta, assembly ] }
-            
         RGI_MAIN(
-            ch_rgi_input,
-            ch_rgi_db_final,
+            ch_final_assembly,
+            PREPARE_TOOL_DBS.out.rgi_db,
             []
         )
+        ch_versions      = ch_versions.mix(RGI_MAIN.out.versions.first())
+        ch_rgi_results   = RGI_MAIN.out.tsv
+        ch_multiqc_files = ch_multiqc_files.mix(ch_rgi_results.map { it[1] }.ifEmpty([]))
+    } else {
+        ch_rgi_results = Channel.empty()
+    }
 
-        ch_versions = ch_versions.mix(RGI_MAIN.out.versions)
-    
-
-        ch_multiqc_files = ch_multiqc_files.mix(
-            RGI_MAIN.out.tsv.map { meta, tsv -> tsv }.ifEmpty([])
-        )
-    }    
-    
-    //  if FASTA validation is needed
-    def run_validate_fasta = params.run_plasmidfinder || params.run_plasclass
-
-    // Run FASTA validation only if PlasmidFinder or PlasClass is enabled
-    if (run_validate_fasta) {
-        log.info "Validating FASTA files"
-        VALIDATE_FASTA(ch_final_polished_assembly)
+    //
+    // MODULE: FASTA validation (required by PlasmidFinder and PlasClass)
+    //
+    if (params.run_plasmidfinder || params.run_plasclass) {
+        VALIDATE_FASTA(ch_final_assembly)
         ch_validated_assemblies = VALIDATE_FASTA.out.validated_fasta
     } else {
-        log.info "Skipping FASTA validation"
-        ch_validated_assemblies = ch_final_polished_assembly
+        ch_validated_assemblies = ch_final_assembly
     }
 
-
+    //
+    // MODULE: PlasmidFinder
+    //
     if (params.run_plasmidfinder) {
-        log.info "Running PlasmidFinder"
-
-    // Run PlasmidFinder
         PLASMIDFINDER(ch_validated_assemblies)
-
-        ch_versions = ch_versions.mix(PLASMIDFINDER.out.versions)
-
-        ch_multiqc_files = ch_multiqc_files.mix(
-            PLASMIDFINDER.out.tsv.collect { it[1] }.ifEmpty([])
-        )
-        
+        ch_versions             = ch_versions.mix(PLASMIDFINDER.out.versions.first())
+        ch_plasmidfinder_results = PLASMIDFINDER.out.tsv
+        ch_multiqc_files        = ch_multiqc_files.mix(ch_plasmidfinder_results.collect { it[1] }.ifEmpty([]))
+    } else {
+        ch_plasmidfinder_results = Channel.empty()
     }
-     
-    // Run PlasClass
+
+    //
+    // MODULE: PlasClass
+    //
     if (params.run_plasclass) {
-        log.info "Running PlasClass"
         PLASCLASS(ch_validated_assemblies)
-        ch_versions = ch_versions.mix(PLASCLASS.out.versions)
-        ch_multiqc_files = ch_multiqc_files.mix(
-            PLASCLASS.out.classified.collect { it[1] }.ifEmpty([])
-        )
+        ch_versions          = ch_versions.mix(PLASCLASS.out.versions.first())
+        ch_plasclass_results = PLASCLASS.out.classified
+        ch_multiqc_files     = ch_multiqc_files.mix(ch_plasclass_results.collect { it[1] }.ifEmpty([]))
+    } else {
+        ch_plasclass_results = Channel.empty()
     }
-    
-  
-    // Collect results from AMR/plasmid tools
-    ch_abricate_results       = params.run_abricate ? ABRICATE_RUN.out.report : Channel.empty()
-    ch_amrfinderplus_results  = params.run_amrfinderplus ? AMRFINDERPLUS_RUN.out.report : Channel.empty()
-    ch_rgi_results            = params.run_rgi ? RGI_MAIN.out.tsv : Channel.empty()
-    ch_resfinder_results = params.run_resfinder ? RESFINDER_RUN.out.resfinder_results_tab : Channel.empty()
-    ch_plasclass_results = params.run_plasclass ? PLASCLASS.out.classified : Channel.empty()
-   
 
-    // Run HAMRONIZATION
+    //
+    // SUBWORKFLOW: hAMRonization (harmonise AMR results across tools)
+    //
     def any_amr_enabled = params.run_abricate || params.run_amrfinderplus || params.run_rgi
 
-    if (params.run_hamronization && any_amr_enabled) {
-        HAMRONIZATION (
-            ch_abricate_results,
-            ch_amrfinderplus_results,
-            ch_rgi_results
-        )
-        ch_versions = ch_versions.mix(HAMRONIZATION.out.versions.ifEmpty([]))
-        
-    } else if (params.run_hamronization) {
-        log.warn "HAMRONIZATION requested but no AMR tools are enabled."
-    } else {
-        log.info "Skipping HAMRONIZATION: --run_hamronization not enabled."
-    }
-    
-    // Run Profiling
-    if (params.run_profiling && !params.target_species) {
-    ch_profiling_input = ch_final_polished_assembly.map { meta, assembly -> 
-        [meta, [assembly]]  //  
-      
-    }
-    
-    PROFILING(
-        ch_profiling_input,
-        ch_databases
-    )
-    ch_versions = ch_versions.mix(PROFILING.out.versions)
-    ch_multiqc_files = ch_multiqc_files.mix(PROFILING.out.multiqc_files.map { it[1] }.ifEmpty([]))
-    
-
-    if (params.perform_assembly && params.run_centrifuge) {
-        COMBINE_CONTIGS_AND_SPECIES(
-            PROFILING.out.centrifuge_results.join(PROFILING.out.centrifuge_report)
-        )
-    } else {
-        log.info "Skipping COMBINE_CONTIGS_AND_SPECIES: requires both --perform_assembly and --run_centrifuge."
-    }
-
-    }
-    ch_centrifuge_species = (params.run_profiling && !params.target_species && params.run_centrifuge && params.perform_assembly) \
-        ? COMBINE_CONTIGS_AND_SPECIES.out.contigs_species_table \
-        : Channel.empty()
-    ch_centrifuge_results = ch_centrifuge_species
-    
-
-    // Run Target Species
-    if (params.target_species && params.perform_assembly) {
-        error """
-        --target_species is READ-BASED and cannot be used with assembly.
-
-        Please disable:
-            --perform_assembly
-            --perform_polish_assembly
-
-        Target species mode only works on:
-            raw / trimmed / host-removed reads
+    if (params.run_resfinder && params.run_hamronization) {
+        log.warn """
+        ResFinder results will NOT be included in hAMRonization summary.
+        ResFinder 4.1.11 JSON output is incompatible with hamronize 1.1.9.
+        ResFinder results are still available in: ${params.outdir}/resfinder/
+        hAMRonization support will be enabled when ResFinder is updated to v4.6.0+.
         """
     }
-    ch_reads_for_target =
-        params.perform_hostremoval ? ch_hostremoved :
-        params.perform_trim       ? ch_processed_reads :
-                                    ch_samplesheet
-    
-    if (params.target_species) {
+    if (params.run_hamronization && any_amr_enabled) {
+        HAMRONIZATION(
+            ch_abricate_results,
+            ch_amrfinderplus_results,
+            ch_rgi_results,
+            Channel.empty()  // ResFinder excluded: hamronize 1.1.9 incompatible with ResFinder 4.1.11 JSON
+        )
+        ch_versions = ch_versions.mix(HAMRONIZATION.out.versions.ifEmpty([]))
+    } else if (params.run_hamronization) {
+        log.warn "hAMRonization requested but no supported AMR tools are enabled (Abricate, AMRFinderPlus, RGI)."
+    }
 
+    //
+    // SUBWORKFLOW: Taxonomic profiling
+    //
+    if (params.run_profiling && !params.target_species) {
+        ch_profiling_input = ch_final_assembly.map { meta, assembly -> [ meta, [assembly] ] }
+
+        PROFILING(ch_profiling_input, ch_databases)
+        ch_versions      = ch_versions.mix(PROFILING.out.versions)
+        ch_multiqc_files = ch_multiqc_files.mix(PROFILING.out.multiqc_files.map { it[1] }.ifEmpty([]))
+        if (!params.skip_krona) {
+            ch_multiqc_files = ch_multiqc_files.mix(PROFILING.out.krona_html.map { it[1] }.ifEmpty([]))
+        }
+
+        if (params.perform_assembly && params.run_centrifuge) {
+            COMBINE_CONTIGS_AND_SPECIES(
+                PROFILING.out.centrifuge_results.join(PROFILING.out.centrifuge_report)
+            )
+            ch_centrifuge_species = COMBINE_CONTIGS_AND_SPECIES.out.contigs_species_table
+        } else {
+            ch_centrifuge_species = Channel.empty()
+        }
+    } else {
+        ch_centrifuge_species = Channel.empty()
+    }
+
+    //
+    // SUBWORKFLOW: Target species AMR mode (read-based, no assembly)
+    //
+    ch_reads_for_target = params.perform_hostremoval ? ch_hostremoved
+                        : params.perform_trim        ? ch_processed_reads
+                        : ch_samplesheet
+
+    if (params.target_species) {
         TARGET_SPECIES_AMR(
             ch_reads_for_target,
             ch_databases,
             PREPARE_TOOL_DBS.out.resfinder_db,
             params.target_species
         )
-
-        ch_versions = ch_versions.mix(TARGET_SPECIES_AMR.out.versions)
+        ch_versions      = ch_versions.mix(TARGET_SPECIES_AMR.out.versions)
         ch_multiqc_files = ch_multiqc_files.mix(TARGET_SPECIES_AMR.out.multiqc_files.map { it[1] }.ifEmpty([]))
-
     }
 
-
-
-    // Collate and save software versions
+    //
+    // Collate software versions
     //
     softwareVersionsToYAML(ch_versions.mix(Channel.topic('versions')))
         .collectFile(
             storeDir: "${params.outdir}/pipeline_info",
-            name: 'nf_core_'  + 'pipeline_software_' +  'mqc_'  + 'versions.yml',
-            sort: true,
-            newLine: true
-        ).set { ch_collated_versions }
-    
-    
+            name:     'nf_core_pipeline_software_mqc_versions.yml',
+            sort:     true,
+            newLine:  true
+        )
+        .set { ch_collated_versions }
+
     //
     // MODULE: MultiQC
     //
-    ch_multiqc_config        = Channel.fromPath(
-        "$projectDir/assets/multiqc_config.yml", checkIfExists: true)
-    ch_multiqc_custom_config = params.multiqc_config ?
-        Channel.fromPath(params.multiqc_config, checkIfExists: true) :
-        Channel.empty()
-    ch_multiqc_logo          = params.multiqc_logo ?
-        Channel.fromPath(params.multiqc_logo, checkIfExists: true) :
-        Channel.empty()
+    // Note: MULTIQC module takes a single tuple input — config/logo passed inline
 
-    
-    summary_params      = paramsSummaryMap(
-        workflow, parameters_schema: "nextflow_schema.json")
+    summary_params      = paramsSummaryMap(workflow, parameters_schema: "nextflow_schema.json")
     ch_workflow_summary = Channel.value(paramsSummaryMultiqc(summary_params))
-    ch_multiqc_files = ch_multiqc_files.mix(
-        ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
-    
-    ch_multiqc_custom_methods_description = params.multiqc_methods_description ?
-        file(params.multiqc_methods_description, checkIfExists: true) :
-        file("$projectDir/assets/methods_description_template.yml", checkIfExists: true)
-    ch_methods_description                = Channel.value(
-        methodsDescriptionText(ch_multiqc_custom_methods_description))
+    ch_multiqc_files    = ch_multiqc_files.mix(ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
+
+    ch_multiqc_custom_methods_description = params.multiqc_methods_description
+        ? file(params.multiqc_methods_description, checkIfExists: true)
+        : file("$projectDir/assets/methods_description_template.yml", checkIfExists: true)
+    ch_methods_description = Channel.value(methodsDescriptionText(ch_multiqc_custom_methods_description))
 
     ch_multiqc_files = ch_multiqc_files.mix(ch_collated_versions)
     ch_multiqc_files = ch_multiqc_files.mix(
-        ch_methods_description.collectFile(
-            name: 'methods_description_mqc.yaml',
-            sort: true
-        )
+        ch_methods_description.collectFile(name: 'methods_description_mqc.yaml', sort: true)
     )
+
     if (params.perform_hostremoval) {
-        ch_multiqc_files = ch_multiqc_files.mix(READS_HOSTREMOVAL.out.mqc.collect{it[1]}.ifEmpty([]))
+        ch_multiqc_files = ch_multiqc_files.mix(READS_HOSTREMOVAL.out.mqc.collect { it[1] }.ifEmpty([]))
     }
     if (params.perform_assembly) {
-        ch_multiqc_files = ch_multiqc_files.mix(ch_quast.collect{it[1]}.ifEmpty([]))
+        ch_multiqc_files = ch_multiqc_files.mix(ch_quast.collect { it[1] }.ifEmpty([]))
     }
-    
-    MULTIQC (
-        ch_multiqc_files.collect().map { files -> 
-            [[id: 'multiqc'], files, [file("$projectDir/assets/multiqc_config.yml")], [], [], []]
+
+    MULTIQC(
+        ch_multiqc_files.collect().map { files ->
+            [
+                [id: 'multiqc'],
+                files,
+                params.multiqc_config
+                    ? [file("$projectDir/assets/multiqc_config.yml"), file(params.multiqc_config)]
+                    : [file("$projectDir/assets/multiqc_config.yml")],
+                params.multiqc_logo ? [file(params.multiqc_logo)] : [],
+                [],
+                []
+            ]
         }
     )
 
     emit:
     multiqc_report = MULTIQC.out.report.map { meta, report -> report }.toList()
-    versions       = ch_versions.ifEmpty([])               
+    versions       = ch_versions
 
 }
 

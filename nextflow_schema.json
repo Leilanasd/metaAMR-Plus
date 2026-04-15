@@ -108,13 +108,18 @@
                 },
                 "save_filtered_reads": {
                     "type": "boolean",
-                    "default": true,
-                    "description": "Save the filtered long reads"
+                    "default": false,
+                    "description": "Save the filtered long reads from Filtlong to results directory"
+                },
+                "save_porechop_reads": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Save the adapter-trimmed long reads from Porechop to results directory"
                 },
                 
                 "perform_trim": {
                     "type": "boolean",
-                    "description": "Skip read trimming step"
+                    "description": "Enable adapter trimming with Porechop and quality filtering with Filtlong"
                 }
             }
         },
@@ -242,10 +247,10 @@
             "fa_icon": "fas fa-tools",
             "description": "Options for executing various analysis tools",
             "properties": {
-                "run_fastqc": {
+                "skip_fastqc": {
                     "type": "boolean",
-                    "description": "Run FastQC quality control on input reads",
-                    "fa_icon": "fas fa-check"
+                    "description": "Skip FastQC quality control on input reads",
+                    "fa_icon": "fas fa-fast-forward"
                 },
             
                 "run_resfinder": {
@@ -557,6 +562,11 @@
                     "description": "Run taxonomic profiling",
                     "fa_icon": "fas fa-play"
                     
+                },
+                "skip_krona": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Skip Krona interactive HTML visualization of taxonomic classifications"
                 },
                 "run_kaiju": {
                     "type": "boolean",

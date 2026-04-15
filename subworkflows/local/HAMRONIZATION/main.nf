@@ -1,17 +1,15 @@
-include { HAMRONIZATION_ABRICATE } from '../../../modules/nf-core/hamronization/abricate/main'
+include { HAMRONIZATION_ABRICATE      } from '../../../modules/nf-core/hamronization/abricate/main'
 include { HAMRONIZATION_AMRFINDERPLUS } from '../../../modules/nf-core/hamronization/amrfinderplus/main'
-include { HAMRONIZATION_RGI } from '../../../modules/nf-core/hamronization/rgi/main'
-include { HAMRONIZATION_SUMMARIZE } from '../../../modules/nf-core/hamronization/summarize/main'
+include { HAMRONIZATION_RGI           } from '../../../modules/nf-core/hamronization/rgi/main'
+include { HAMRONIZATION_RESFINDER     } from '../../../modules/local/hamronization/resfinder/main'
+include { HAMRONIZATION_SUMMARIZE     } from '../../../modules/nf-core/hamronization/summarize/main'
 
 process PREPARE_HAMRONIZATION_INPUTS {
     tag "${meta.id}_${tool}"
-
     input:
     tuple val(meta), path(report), val(tool)
-
     output:
     path("${meta.id}_${tool}_harmonized.tsv")
-
     script:
     """
     cp ${report} ${meta.id}_${tool}_harmonized.tsv
@@ -23,6 +21,7 @@ workflow HAMRONIZATION {
     ch_abricate       // channel: [ val(meta), path(abricate_report) ]
     ch_amrfinderplus  // channel: [ val(meta), path(amrfinderplus_report) ]
     ch_rgi            // channel: [ val(meta), path(rgi_report) ]
+    ch_resfinder      // channel: [ val(meta), path(resfinder_report) ]
 
     main:
     ch_versions   = Channel.empty()
@@ -64,9 +63,18 @@ workflow HAMRONIZATION {
     )
     ch_versions = ch_versions.mix(HAMRONIZATION_RGI.out.versions)
 
+    // Harmonize ResFinder results
+    HAMRONIZATION_RESFINDER(
+        ch_resfinder.filter { it[1] != null },
+        'tsv'
+    )
+    ch_harmonized = ch_harmonized.mix(
+        HAMRONIZATION_RESFINDER.out.tsv.map { meta, report -> [meta, report, 'resfinder'] }
+    )
+    ch_versions = ch_versions.mix(HAMRONIZATION_RESFINDER.out.versions)
+
     // Rename files uniquely before summarize to avoid filename collisions
     PREPARE_HAMRONIZATION_INPUTS(ch_harmonized)
-
     ch_reports_to_summarize = PREPARE_HAMRONIZATION_INPUTS.out.collect()
 
     // Summarize harmonized results
@@ -74,7 +82,6 @@ workflow HAMRONIZATION {
         ch_reports_to_summarize,
         params.arg_hamronization_summarizeformat
     )
-
     ch_summary  = HAMRONIZATION_SUMMARIZE.out.tsv
     ch_versions = ch_versions.mix(HAMRONIZATION_SUMMARIZE.out.versions)
 
@@ -84,4 +91,5 @@ workflow HAMRONIZATION {
     abricate      = HAMRONIZATION_ABRICATE.out.tsv
     amrfinderplus = HAMRONIZATION_AMRFINDERPLUS.out.tsv
     rgi           = HAMRONIZATION_RGI.out.tsv
+    resfinder     = HAMRONIZATION_RESFINDER.out.tsv
 }

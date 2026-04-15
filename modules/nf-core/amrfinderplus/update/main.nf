@@ -7,6 +7,8 @@ process AMRFINDERPLUS_UPDATE {
         'https://depot.galaxyproject.org/singularity/ncbi-amrfinderplus:4.2.7--hf69ffd2_0':
         'biocontainers/ncbi-amrfinderplus:4.2.7--hf69ffd2_0' }"
 
+    publishDir "${params.outdir}/databases/amrfinderplus", mode: params.publish_dir_mode, saveAs: { filename -> filename.equals('versions.yml') ? null : filename }
+
     output:
     path "amrfinderdb.tar.gz", emit: db
     path "versions.yml"                                        , emit: versions
