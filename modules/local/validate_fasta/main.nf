@@ -14,6 +14,7 @@ process VALIDATE_FASTA {
     """
     # Validate that the input FASTA file exists
     if [ ! -f "${fasta}" ]; then
+        echo "WARNING: Sample ${meta.id} has a missing or inaccessible FASTA assembly. PlasmidFinder and PlasClass will be skipped for this sample." >&2
         echo "Error: FASTA input file does not exist or is missing" >&2
         exit 1
     fi
@@ -34,6 +35,7 @@ process VALIDATE_FASTA {
 
     # Validate that the sanitized FASTA starts with '>'
     if [[ ! -s "${meta.id}_validated.fasta" ]] || [[ "\$(head -c 1 "${meta.id}_validated.fasta")" != ">" ]]; then
+        echo "WARNING: Sample ${meta.id} has an invalid FASTA assembly. PlasmidFinder and PlasClass will be skipped for this sample." >&2
         echo "Error: Invalid FASTA file after validation" >&2
         exit 1
     fi

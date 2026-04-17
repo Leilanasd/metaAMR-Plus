@@ -17,6 +17,14 @@ workflow META_ASSEMBLY {
         reads,
         mode,
     ).fasta
+    // Filter out failed assemblies and warn user
+    ch_assembly
+        .filter { meta, fasta ->
+            def isEmpty = fasta.size() == 0
+            if (isEmpty) log.warn "Sample ${meta.id}: Flye assembly produced no output (possibly no reads above minimum length threshold). Skipping downstream analysis for this sample."
+            return !isEmpty
+        }
+        .set { ch_assembly }
     // topic channel: FLYE_META versions
 
    

@@ -367,26 +367,46 @@
                     "default": true,
                     "description": "Run Hamronization summarize"
                 },
+                "resfinder_version": {
+                    "type": "string",
+                    "default": "unknown",
+                    "description": "ResFinder version for hAMRonization (internal use)",
+                    "hidden": true
+                },
+                "resfinder_db_version": {
+                    "type": "string",
+                    "default": "unknown",
+                    "description": "ResFinder database version for hAMRonization (internal use)",
+                    "hidden": true
+                },
                 "abricate_version": {
                     "type": "string",
                     "default": "unknown",
                     "description": "Version of Abricate"
+                ,
+                    "hidden": true
                 },
                 "abricate_db_version": {
                     "type": "string",
                     "default": "unknown",
                     "description": "Version of Abricate database"
+                ,
+                    "hidden": true
                 },
                 
                 "amrfinderplus_db_version": {
                     "type": "string",
                     "default": "unknown",
                     "description": "Version of AMRFinderPlus database"
+                ,
+                    "hidden": true
                 },
                 "rgi_version": {
                     "type": "string",
                     "default": "unknown",
                     "description": "Version of RGI"
+                ,
+                    "hidden": true
                 },
                 "card_version": {
                     "type": "string",

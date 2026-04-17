@@ -120,25 +120,23 @@ workflow METAAMR {
     }
 
     // Profiling requires at least one tool
+    // Profiling validation warnings
     if (params.run_profiling && !params.run_centrifuge && !params.run_kaiju) {
-        log.warn "WARNING: --run_profiling enabled but neither --run_centrifuge nor --run_kaiju specified. No profiling will be performed."
+        log.warn "--run_profiling enabled but neither --run_centrifuge nor --run_kaiju specified. No profiling will be performed."
     }
-    if (params.run_centrifuge && !params.databases) {
+    if (params.run_centrifuge && !params.run_profiling) {
+        log.warn "--run_centrifuge specified but --run_profiling not enabled. Centrifuge will not run. Add --run_profiling to enable profiling."
+    }
+    if (params.run_kaiju && !params.run_profiling) {
+        log.warn "--run_kaiju specified but --run_profiling not enabled. Kaiju will not run. Add --run_profiling to enable profiling."
+    }
+    if (params.target_species && !params.databases) {
         error """
-        --run_centrifuge requires a Centrifuge database.
+        --target_species mode requires a Centrifuge database.
         Please provide a databases CSV file with a centrifuge entry:
             --databases database.csv
         Where database.csv contains a line like:
             centrifuge,centrifuge_db,,/path/to/centrifuge_db
-        """
-    }
-    if (params.run_kaiju && !params.databases) {
-        error """
-        --run_kaiju requires a Kaiju database.
-        Please provide a databases CSV file with a kaiju entry:
-            --databases database.csv
-        Where database.csv contains a line like:
-            kaiju,kaiju_db,,/path/to/kaiju_db
         """
     }
 
@@ -171,11 +169,18 @@ workflow METAAMR {
 
         ch_clipped_reads = PORECHOP_PORECHOP.out.reads
             .map { meta, reads ->
-                [ meta + [single_end: true], reads ]
+                def readList = reads instanceof List ? reads : [reads]
+                def trimmed = readList.find { it.name.endsWith('_porechop.fastq.gz') } ?: readList[-1]
+                [ meta + [single_end: true], trimmed ]
             }
 
         FILTLONG(ch_clipped_reads.map { meta, reads -> [ meta, [], reads ] })
         ch_processed_reads = FILTLONG.out.reads
+            .filter { meta, reads ->
+                def isEmpty = reads instanceof List ? reads.every { it.size() == 0 } : reads.size() == 0
+                if (isEmpty) log.warn "Sample ${meta.id}: No reads remaining after Filtlong quality filtering. This sample will be skipped."
+                return !isEmpty
+            }
 
         ch_versions      = ch_versions.mix(PORECHOP_PORECHOP.out.versions.first())
         ch_versions      = ch_versions.mix(FILTLONG.out.versions.first())
@@ -191,6 +196,11 @@ workflow METAAMR {
     if (params.perform_hostremoval) {
         READS_HOSTREMOVAL(ch_processed_reads, ch_reference, ch_reference_index)
         ch_hostremoved = READS_HOSTREMOVAL.out.reads
+            .filter { meta, reads ->
+                def isEmpty = reads instanceof List ? reads.every { it.size() == 0 } : reads.size() == 0
+                if (isEmpty) log.warn "Sample ${meta.id}: No reads remaining after host removal. This sample will be skipped."
+                return !isEmpty
+            }
         ch_versions    = ch_versions.mix(READS_HOSTREMOVAL.out.versions)
     } else {
         ch_hostremoved = ch_processed_reads
