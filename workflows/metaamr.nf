@@ -279,7 +279,7 @@ workflow METAAMR {
         ABRICATE_RUN(ch_final_assembly, params.arg_abricate_db)
         ch_versions          = ch_versions.mix(ABRICATE_RUN.out.versions.first())
         ch_abricate_results  = ABRICATE_RUN.out.report
-        ch_multiqc_files     = ch_multiqc_files.mix(ch_abricate_results.map { it[1] })
+        ch_multiqc_files     = ch_multiqc_files.mix(ABRICATE_RUN.out.report.map { meta, report -> report }.ifEmpty([]))
     } else {
         ch_abricate_results = Channel.empty()
     }
@@ -310,7 +310,7 @@ workflow METAAMR {
         )
         ch_versions      = ch_versions.mix(RGI_MAIN.out.versions.first())
         ch_rgi_results   = RGI_MAIN.out.tsv
-        ch_multiqc_files = ch_multiqc_files.mix(ch_rgi_results.map { it[1] }.ifEmpty([]))
+        ch_multiqc_files = ch_multiqc_files.mix(RGI_MAIN.out.tsv.map { meta, report -> report }.ifEmpty([]))
     } else {
         ch_rgi_results = Channel.empty()
     }
@@ -449,7 +449,7 @@ workflow METAAMR {
     )
 
     if (params.perform_hostremoval) {
-        ch_multiqc_files = ch_multiqc_files.mix(READS_HOSTREMOVAL.out.mqc.collect { it[1] }.ifEmpty([]))
+        ch_multiqc_files = ch_multiqc_files.mix(READS_HOSTREMOVAL.out.mqc.map { meta, stats -> stats }.ifEmpty([]))
     }
     if (params.perform_assembly) {
         ch_multiqc_files = ch_multiqc_files.mix(ch_quast.collect { it[1] }.ifEmpty([]))

@@ -169,7 +169,7 @@ def validateInputSamplesheet(input) {
     }
 
     // Check that input files are not empty
-    fastqs.each { fastq ->
+    fastqs.flatten().each { fastq ->
         if (fastq.size() == 0) {
             error("Please check input samplesheet -> Input FASTQ file is empty: ${fastq}")
         }

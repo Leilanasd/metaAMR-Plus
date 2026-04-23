@@ -6,6 +6,7 @@ report_comment: >
 export_plots: true
 
 disable_version_detection: true
+log_filesize_limit: 500000000
 
 # How MultiQC finds filtlong log files
 sp:
@@ -20,6 +21,7 @@ extra_fn_clean_exts:
   - "_null_raw"
   - "_null"
   - "_kaiju"
+  - "_porechop"
 
 # Display order for modules (top to bottom as they appear in report)
 module_order:
