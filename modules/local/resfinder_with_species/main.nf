@@ -5,7 +5,7 @@ process RESFINDER_WITH_SPECIES {
     conda "bioconda::resfinder=4.1.11"
     container "${ workflow.containerEngine == 'singularity' ?
         'https://depot.galaxyproject.org/singularity/resfinder:4.1.11--hdfd78af_0' :
-        'biocontainers/resfinder:4.1.11--hdfd78af_0' }"
+        'quay.io/biocontainers/resfinder:4.1.11--hdfd78af_0' }"
 
     input:
     tuple val(meta), path(reads), path(species_info), path(db)
