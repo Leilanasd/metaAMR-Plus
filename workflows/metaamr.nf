@@ -57,9 +57,7 @@ ch_databases = params.databases
         }
     : Channel.empty()
 
-if (params.hostremoval_reference) {
-    ch_reference = file(params.hostremoval_reference)
-}
+ch_reference = params.hostremoval_reference ? file(params.hostremoval_reference) : []
 ch_reference_index = params.hostremoval_index ? file(params.hostremoval_index) : []
 
 /*
@@ -120,7 +118,6 @@ workflow METAAMR {
     }
 
     // Profiling requires at least one tool
-    // Profiling validation warnings
     if (params.run_profiling && !params.run_centrifuge && !params.run_kaiju) {
         log.warn "--run_profiling enabled but neither --run_centrifuge nor --run_kaiju specified. No profiling will be performed."
     }
@@ -184,7 +181,7 @@ workflow METAAMR {
 
         ch_versions      = ch_versions.mix(PORECHOP_PORECHOP.out.versions.first())
         ch_versions      = ch_versions.mix(FILTLONG.out.versions.first())
-        ch_multiqc_files = ch_multiqc_files.mix(PORECHOP_PORECHOP.out.log.map { it[1] })
+        ch_multiqc_files = ch_multiqc_files.mix(PORECHOP_PORECHOP.out.log.map { it[1] }.ifEmpty([]))
         ch_multiqc_files = ch_multiqc_files.mix(FILTLONG.out.log.map { it[1] }.ifEmpty([]))
     } else {
         ch_processed_reads = ch_samplesheet
@@ -294,7 +291,6 @@ workflow METAAMR {
         )
         ch_versions             = ch_versions.mix(AMRFINDERPLUS_RUN.out.versions.first())
         ch_amrfinderplus_results = AMRFINDERPLUS_RUN.out.report
-        ch_multiqc_files        = ch_multiqc_files.mix(ch_amrfinderplus_results.collect { it[1] }.ifEmpty([]))
     } else {
         ch_amrfinderplus_results = Channel.empty()
     }
@@ -332,7 +328,6 @@ workflow METAAMR {
         PLASMIDFINDER(ch_validated_assemblies)
         ch_versions             = ch_versions.mix(PLASMIDFINDER.out.versions.first())
         ch_plasmidfinder_results = PLASMIDFINDER.out.tsv
-        ch_multiqc_files        = ch_multiqc_files.mix(ch_plasmidfinder_results.collect { it[1] }.ifEmpty([]))
     } else {
         ch_plasmidfinder_results = Channel.empty()
     }
@@ -344,7 +339,6 @@ workflow METAAMR {
         PLASCLASS(ch_validated_assemblies)
         ch_versions          = ch_versions.mix(PLASCLASS.out.versions.first())
         ch_plasclass_results = PLASCLASS.out.classified
-        ch_multiqc_files     = ch_multiqc_files.mix(ch_plasclass_results.collect { it[1] }.ifEmpty([]))
     } else {
         ch_plasclass_results = Channel.empty()
     }
@@ -354,20 +348,14 @@ workflow METAAMR {
     //
     def any_amr_enabled = params.run_abricate || params.run_amrfinderplus || params.run_rgi
 
-    if (params.run_resfinder && params.run_hamronization) {
-        log.warn """
-        ResFinder results will NOT be included in hAMRonization summary.
-        ResFinder 4.1.11 JSON output is incompatible with hamronize 1.1.9.
-        ResFinder results are still available in: ${params.outdir}/resfinder/
-        hAMRonization support will be enabled when ResFinder is updated to v4.6.0+.
-        """
-    }
     if (params.run_hamronization && any_amr_enabled) {
         HAMRONIZATION(
             ch_abricate_results,
             ch_amrfinderplus_results,
             ch_rgi_results,
-            Channel.empty()  // ResFinder excluded: hamronize 1.1.9 incompatible with ResFinder 4.1.11 JSON
+            params.run_rgi && params.download_rgi_db
+                ? PREPARE_TOOL_DBS.out.rgi_db_version
+                : Channel.value(params.card_version)
         )
         ch_versions = ch_versions.mix(HAMRONIZATION.out.versions.ifEmpty([]))
     } else if (params.run_hamronization) {
@@ -378,6 +366,8 @@ workflow METAAMR {
     // SUBWORKFLOW: Taxonomic profiling
     //
     if (params.run_profiling && !params.target_species) {
+        // ch_final_assembly contains contigs if --perform_assembly, or reads otherwise
+        // Profiling works on either — Centrifuge/Kaiju accept both FASTA and FASTQ
         ch_profiling_input = ch_final_assembly.map { meta, assembly -> [ meta, [assembly] ] }
 
         PROFILING(ch_profiling_input, ch_databases)
@@ -391,22 +381,21 @@ workflow METAAMR {
             COMBINE_CONTIGS_AND_SPECIES(
                 PROFILING.out.centrifuge_results.join(PROFILING.out.centrifuge_report)
             )
-            ch_centrifuge_species = COMBINE_CONTIGS_AND_SPECIES.out.contigs_species_table
-        } else {
-            ch_centrifuge_species = Channel.empty()
+            ch_versions = ch_versions.mix(COMBINE_CONTIGS_AND_SPECIES.out.versions)
         }
-    } else {
-        ch_centrifuge_species = Channel.empty()
+
     }
 
     //
     // SUBWORKFLOW: Target species AMR mode (read-based, no assembly)
     //
-    ch_reads_for_target = params.perform_hostremoval ? ch_hostremoved
+    
+
+    if (params.target_species) {
+        ch_reads_for_target = params.perform_hostremoval ? ch_hostremoved
                         : params.perform_trim        ? ch_processed_reads
                         : ch_samplesheet
 
-    if (params.target_species) {
         TARGET_SPECIES_AMR(
             ch_reads_for_target,
             ch_databases,

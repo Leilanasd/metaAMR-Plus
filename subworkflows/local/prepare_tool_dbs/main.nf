@@ -1,5 +1,6 @@
 include { DOWNLOAD_DB as RESFINDER_DB_DOWNLOAD } from '../../../modules/local/download_db/main'
 include { DOWNLOAD_DB as RGI_DB_DOWNLOAD } from '../../../modules/local/download_db/main'
+include { RGI_CARDANNOTATION } from '../../../modules/nf-core/rgi/cardannotation/main'
 include { RESFINDER_INDEX } from '../../../modules/local/resfinder_index/main'
 include { AMRFINDERPLUS_UPDATE } from '../../../modules/nf-core/amrfinderplus/update/main'
 
@@ -76,9 +77,9 @@ workflow PREPARE_TOOL_DBS {
     } else if (params.download_resfinder_db) {
         RESFINDER_DB_DOWNLOAD(Channel.of('resfinder'))
         ch_versions = ch_versions.mix(RESFINDER_DB_DOWNLOAD.out.versions)
-        ch_resfinder_db_final = RESFINDER_INDEX(RESFINDER_DB_DOWNLOAD.out.db)
-            .indexed_db
-            .map { db_files -> 
+        RESFINDER_INDEX(RESFINDER_DB_DOWNLOAD.out.db)
+        ch_resfinder_db_final = RESFINDER_INDEX.out.indexed_db
+            .map { db_files ->
                 def files = db_files instanceof List ? db_files : [db_files]
                 files[0].parent
             }
@@ -91,14 +92,21 @@ workflow PREPARE_TOOL_DBS {
      * RGI
      */
     if (csv_rgi_db) {
-        ch_rgi_db_final = Channel.value(file(csv_rgi_db, checkIfExists: true))
+        ch_rgi_db_final     = Channel.value(file(csv_rgi_db, checkIfExists: true))
+        ch_rgi_db_version   = Channel.value('unknown')
     } else if (params.rgi_db) {
-        ch_rgi_db_final = Channel.value(file(params.rgi_db, checkIfExists: true))
+        ch_rgi_db_final     = Channel.value(file(params.rgi_db, checkIfExists: true))
+        ch_rgi_db_version   = Channel.value('unknown')
     } else if (params.download_rgi_db) {
         RGI_DB_DOWNLOAD(Channel.of('rgi'))
-        ch_rgi_db_final = RGI_DB_DOWNLOAD.out.db.first()
+        ch_versions         = ch_versions.mix(RGI_DB_DOWNLOAD.out.versions)
+        RGI_CARDANNOTATION(RGI_DB_DOWNLOAD.out.db.first())
+        ch_versions         = ch_versions.mix(RGI_CARDANNOTATION.out.versions)
+        ch_rgi_db_final     = RGI_CARDANNOTATION.out.db
+        ch_rgi_db_version   = RGI_CARDANNOTATION.out.db_version
     } else {
-        ch_rgi_db_final = Channel.empty()
+        ch_rgi_db_final     = Channel.empty()
+        ch_rgi_db_version   = Channel.value('unknown')
     }
 
     /*
@@ -120,6 +128,7 @@ workflow PREPARE_TOOL_DBS {
     emit:
     resfinder_db     = ch_resfinder_db_final
     rgi_db           = ch_rgi_db_final
+    rgi_db_version   = ch_rgi_db_version
     amrfinderplus_db = ch_amrfinderplus_db_final
     versions         = ch_versions
 }

@@ -30,5 +30,9 @@ process AMRFINDERPLUS_UPDATE {
     """
     touch amrfinderdb.tar
     gzip amrfinderdb.tar
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        amrfinderplus: 4.2.7
+    END_VERSIONS
     """
 }

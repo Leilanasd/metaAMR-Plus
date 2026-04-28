@@ -43,7 +43,8 @@ process RGI_MAIN {
     }
 
     """
-    DB_VERSION=\$(grep -oE [0-9]+[.][0-9]+[.][0-9]+ ${card}/CARD-Download-README.txt | tail -1 | tr -d [:space:] || echo unknown)
+    DB_VERSION=\$(python3 -c "import json; d=json.load(open('${card}/card.json')); print(d.get('_version',''))" 2>/dev/null)
+    DB_VERSION=\${DB_VERSION:-unknown}
 
     rgi \\
         load \\

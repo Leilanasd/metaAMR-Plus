@@ -45,45 +45,6 @@
             }
         },
 
-        "reference_genome_options": {
-            "title": "Reference genome options",
-            "type": "object",
-            "fa_icon": "fas fa-dna",
-            "description": "Reference genome related files and options required for the workflow.",
-            "properties": {
-                "genome": {
-                    "type": "string",
-                    "description": "Name of iGenomes reference.",
-                    "fa_icon": "fas fa-book",
-                    "help_text": "If using a reference genome configured in the pipeline using iGenomes, use this parameter to give the ID for the reference. This is then used to build the full paths for all required reference genome files e.g. `--genome GRCh38`. \n\nSee the [nf-core website docs](https://nf-co.re/usage/reference_genomes) for more details."
-                },
-                "fasta": {
-                    "type": "string",
-                    "format": "file-path",
-                    "exists": true,
-                    "mimetype": "text/plain",
-                    "pattern": "^\\S+\\.fn?a(sta)?(\\.gz)?$",
-                    "description": "Path to FASTA genome file.",
-                    "help_text": "This parameter is *mandatory* if `--genome` is not specified. If you don't have a BWA index available this will be generated for you automatically. Combine with `--save_reference` to save BWA index for future runs.",
-                    "fa_icon": "far fa-file-code"
-                },
-                "igenomes_ignore": {
-                    "type": "boolean",
-                    "description": "Do not load the iGenomes reference config.",
-                    "fa_icon": "fas fa-ban",
-                    "hidden": true,
-                    "help_text": "Do not load `igenomes.config` when running the pipeline. You may choose this option if you observe clashes between custom parameters and those supplied in `igenomes.config`."
-                },
-                "igenomes_base": {
-                    "type": "string",
-                    "format": "directory-path",
-                    "description": "The base path to the igenomes reference files",
-                    "fa_icon": "fas fa-ban",
-                    "hidden": true,
-                    "default": "s3://ngi-igenomes/igenomes/"
-                }
-            }
-        },
         
         "read_processing_options": {
             "title": "Read processing options",
@@ -130,11 +91,7 @@
             "fa_icon": "fas fa-filter",
             "description": "Options for host sequence removal",
             "properties": {
-                "reference": {
-                    "type": ["string", "null"],
-                    "default": null,
-                    "description": "Path to reference genome for host removal"
-                },
+                
                 "perform_hostremoval": {
                     "type": "boolean",
                     "description": "Perform host sequence removal"
@@ -151,22 +108,22 @@
                 },
                "save_hostremoval_index": {
                     "type": "boolean",
-                    "default": true,
+                    "default": false,
                     "description": "Save the host removal index"
                 },
                 "save_hostremoval_bam": {
                     "type": "boolean",
-                    "default": true,
+                    "default": false,
                     "description": "Save the BAM file from host removal"
                 },
                 "save_hostremoval_unmapped": {
                     "type": "boolean",
-                    "default": true,
+                    "default": false,
                     "description": "Save unmapped reads after host removal"
                 },
                 "save_analysis_ready_fastqs": {
                     "type": "boolean",
-                    "default": true,
+                    "default": false,
                     "description": "Save analysis-ready FASTQs after host removal"
                 }
             }
@@ -201,19 +158,17 @@
             "type": "object",
             "description": "Options for database handling",
             "properties": {
-                "save_untarred_databases": {
-                    "type": "boolean",
-                    "description": "Save untarred databases"
-                },
+                
                 "save_databases": {
                     "type": "boolean",
-                    "default": true,
-                    "description": "Save databases"
+                    "default": false,
+                    "description": "Save downloaded database tarballs to results directory"
+               
                 },
                 "resfinder_db": {
                     "type": ["string", "null"],
                     "default": null,
-                    "description": "Path to ResFinder database"
+                    "description": "Path to existing ResFinder database folder (alternative to --download_resfinder_db)"
                 },
                 "download_resfinder_db": {
                     "type": "boolean",
@@ -222,7 +177,7 @@
                 "rgi_db": {
                     "type": ["string", "null"],
                     "default": null,
-                    "description": "Path to RGI database"
+                    "description": "Path to existing RGI card_database_processed folder, produced by rgi card_annotation (alternative to --download_rgi_db)"
                 },
                 "download_rgi_db": {
                     "type": "boolean",
@@ -231,16 +186,11 @@
                 "amrfinderplus_db": {
                     "type": ["string", "null"],
                     "default": null,
-                    "description": "Path to AMRFinderPlus database"
+                    "description": "Path to AMRFinderPlus database tarball (.tar.gz). Must be produced by amrfinder_update or --download_amrfinderplus_db to ensure correct internal structure."
                 },
                 "download_amrfinderplus_db": {
                     "type": "boolean",
                     "description": "Download AMRFinderPlus database"
-                },
-                "abricate_db": {
-                    "type": ["string", "null"],
-                    "default": null,
-                    "description": "Path to Abricate database"
                 }
                 
             }
@@ -342,15 +292,8 @@
                 },
                 "run_hamronization": {
                     "type": "boolean",
-                    "default": true,
+                    "default": false,
                     "description": "Run Hamronization"
-                },
-                "hamronization_tools": {
-                    "type": "string",
-                    "default": "abricate,amrfinderplus,rgi",
-                    "description": "Comma-separated list of tools to include in hAMRonization.",
-                    "fa_icon": "fas fa-tools",
-                    "hidden": true
                 },
                 "arg_hamronization_format": {
                     "type": "string",
@@ -361,11 +304,6 @@
                     "type": "string",
                     "default": "tsv",
                     "description": "Summary format for Hamronization"
-                },
-                "run_hamronization_summarize": {
-                    "type": "boolean",
-                    "default": true,
-                    "description": "Run Hamronization summarize"
                 },
                 "resfinder_version": {
                     "type": "string",
@@ -630,9 +568,7 @@
         {
             "$ref": "#/$defs/input_output_options"
         },
-        {
-            "$ref": "#/$defs/reference_genome_options"
-        },
+        
         {
             "$ref": "#/$defs/institutional_config_options"
         },

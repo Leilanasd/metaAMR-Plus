@@ -2,8 +2,13 @@ process DOWNLOAD_DB {
     tag "$tool"
     label 'process_high'
     label 'error_retry'
-    publishDir "${params.outdir}/databases", mode: 'copy', saveAs: { filename -> "${tool}/$filename" }
-
+    publishDir "${params.outdir}/databases", mode: params.publish_dir_mode,
+        saveAs: { filename ->
+            if (filename.equals('versions.yml')) return null
+            if (params.save_databases)           return "${tool}/$filename"
+            return null
+        }
+        
     input:
     val tool
 
@@ -14,28 +19,21 @@ process DOWNLOAD_DB {
 
     script:
     """
-    set -x  # Enable debug mode
-
-    # Check tool availability
-    which git || echo "Git not found"
-    which wget || echo "Wget not found"
-    which python3 || echo "Python3 not found"
-
     mkdir -p ${tool}_db
     case $tool in
         resfinder)
             git clone https://bitbucket.org/genomicepidemiology/resfinder_db.git ${tool}_db
-            TOOL_VERSION=\$(cat ${tool}_db/VERSION 2>/dev/null || echo "unknown")
+            TOOL_VERSION=\$(cat ${tool}_db/VERSION 2>/dev/null)
+            TOOL_VERSION=\${TOOL_VERSION:-unknown}
+            printf '"%s":\n    resfinder: %s\n' "${task.process}" "\$TOOL_VERSION" > versions.yml
             ;;
+        
         rgi)
             wget https://card.mcmaster.ca/latest/data -O ${tool}_db.tar.gz
             tar -xvf ${tool}_db.tar.gz -C ${tool}_db
-
-            TOOL_VERSION=\$(grep -oE [0-9]+[.][0-9]+[.][0-9]+ ${tool}_db/CARD-Download-README.txt | tail -1 || echo unknown)
-            ;;
-        amrfinderplus)
-            amrfinder_update --force_update --database ${tool}_db
-            TOOL_VERSION=\$(amrfinder --version 2>&1 | sed 's/^.*v//')
+            TOOL_VERSION=\$(python3 -c "import json; d=json.load(open('${tool}_db/card.json')); print(d.get('_version',''))" 2>/dev/null)
+            TOOL_VERSION=\${TOOL_VERSION:-unknown}
+            printf '"%s":\n    card: %s\n' "${task.process}" "\$TOOL_VERSION" > versions.yml
             ;;
         
         *)
@@ -43,11 +41,5 @@ process DOWNLOAD_DB {
             exit 1
             ;;
     esac
-
-    # Save version information
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        ${tool}: \$TOOL_VERSION
-    END_VERSIONS
     """
 }
