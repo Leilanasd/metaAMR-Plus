@@ -18,17 +18,6 @@
 include { METAAMR  } from './workflows/metaamr'
 include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_metaamr_pipeline/main'
 include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_metaamr_pipeline/main'
-include { getGenomeAttribute      } from './subworkflows/local/utils_nfcore_metaamr_pipeline/main'
-/*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    GENOME PARAMETER VALUES
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-*/
-
-// TODO nf-core: Remove this line if you don't need a FASTA file
-//   This is an example of how to use getGenomeAttribute() to fetch parameters
-//   from igenomes.config using `--genome`
-params.fasta = getGenomeAttribute('fasta')
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
