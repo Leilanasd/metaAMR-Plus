@@ -2,12 +2,20 @@ process VALIDATE_FASTA {
     tag "$meta.id"
     label 'process_low'
 
+    conda "conda-forge::bash=5.2"
+    container "${ workflow.containerEngine == 'singularity' ?
+        'https://depot.galaxyproject.org/singularity/ubuntu:20.04' :
+        'ubuntu:20.04' }"
+
     input:
     tuple val(meta), path(fasta)
 
     output:
     tuple val(meta), path("${meta.id}_validated.fasta"), emit: validated_fasta
     path "versions.yml", emit: versions
+
+    when:
+    task.ext.when == null || task.ext.when
 
     script:
     def input_file = "${meta.id}_input.fasta"
@@ -19,31 +27,23 @@ process VALIDATE_FASTA {
         exit 1
     fi
 
-    # Check if the file is gzipped and decompress if necessary
+    # Decompress if gzipped
     if [[ "${fasta}" == *.gz ]]; then
         gunzip -c "${fasta}" > "${input_file}"
     else
         cp "${fasta}" "${input_file}"
     fi
 
-    # Debugging output
-    echo "Contents of input file (before processing):"
-    head -n 10 "${input_file}"
-
-    # Sanitize headers
+    # Sanitize FASTA headers to simple sequential contig IDs
     awk '/^>/ {print ">contig_" ++i} !/^>/ {print}' "${input_file}" > "${meta.id}_validated.fasta"
 
-    # Validate that the sanitized FASTA starts with '>'
-    if [[ ! -s "${meta.id}_validated.fasta" ]] || [[ "\$(head -c 1 "${meta.id}_validated.fasta")" != ">" ]]; then
+    # Validate that the sanitized FASTA is non-empty and starts with ">"
+    if [[ ! -s "${meta.id}_validated.fasta" ]] || [[ "\$(head -c 1 ${meta.id}_validated.fasta)" != ">" ]]; then
         echo "WARNING: Sample ${meta.id} has an invalid FASTA assembly. PlasmidFinder and PlasClass will be skipped for this sample." >&2
         echo "Error: Invalid FASTA file after validation" >&2
         exit 1
     fi
 
-    echo "Contents of validated FASTA file:"
-    head -n 10 "${meta.id}_validated.fasta"
-
-    # Record software version
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         bash: \$(bash --version | head -n 1 | awk '{print \$4}')
