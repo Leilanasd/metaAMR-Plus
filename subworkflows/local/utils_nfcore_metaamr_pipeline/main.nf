@@ -135,8 +135,6 @@ workflow PIPELINE_COMPLETION {
         }
 
         completionSummary(monochrome_logs)
-        if (hook_url) {
-        }
     }
 
     workflow.onError {
@@ -153,7 +151,43 @@ workflow PIPELINE_COMPLETION {
 // Check and validate pipeline parameters
 //
 def validateInputParameters() {
-    genomeExistsError()
+    // Assembly-dependent tools need --perform_assembly
+    def assembly_required = (
+        params.run_rgi          ||
+        params.run_amrfinderplus ||
+        params.run_abricate     ||
+        params.run_plasmidfinder ||
+        params.run_plasclass
+    )
+    if (assembly_required && !params.perform_assembly) {
+        error("Assembly-dependent tools (RGI, AMRFinderPlus, Abricate, PlasmidFinder, PlasClass) require --perform_assembly to be enabled.")
+    }
+
+    // target_species is incompatible with assembly
+    if (params.target_species && params.perform_assembly) {
+        error("--target_species is read-based and cannot be used with --perform_assembly.")
+    }
+
+    // target_species needs a database CSV
+    if (params.target_species && !params.databases) {
+        error("--target_species mode requires a Centrifuge database provided via --databases CSV.")
+    }
+
+    // Host removal needs a reference
+    if (params.perform_hostremoval && !params.hostremoval_reference) {
+        error("--perform_hostremoval requires a host reference genome via --hostremoval_reference.")
+    }
+
+    // Profiling tool flags without --run_profiling
+    if (params.run_centrifuge && !params.run_profiling) {
+        log.warn "--run_centrifuge specified but --run_profiling not enabled. Centrifuge will not run. Add --run_profiling."
+    }
+    if (params.run_kaiju && !params.run_profiling) {
+        log.warn "--run_kaiju specified but --run_profiling not enabled. Kaiju will not run. Add --run_profiling."
+    }
+    if (params.run_profiling && !params.run_centrifuge && !params.run_kaiju) {
+        log.warn "--run_profiling enabled but neither --run_centrifuge nor --run_kaiju specified. No profiling will be performed."
+    }
 }
 
 //
@@ -177,55 +211,55 @@ def validateInputSamplesheet(input) {
     return [ metas[0], fastqs ]
 }
 //
-// Get attribute from genome config file e.g. fasta
-//
-def getGenomeAttribute(attribute) {
-    if (params.genomes && params.genome && params.genomes.containsKey(params.genome)) {
-        if (params.genomes[ params.genome ].containsKey(attribute)) {
-            return params.genomes[ params.genome ][ attribute ]
-        }
-    }
-    return null
-}
-
-//
-// Exit pipeline if incorrect --genome key provided
-//
-def genomeExistsError() {
-    if (params.genomes && params.genome && !params.genomes.containsKey(params.genome)) {
-        def error_string = "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n" +
-            "  Genome '${params.genome}' not found in any config files provided to the pipeline.\n" +
-            "  Currently, the available genome keys are:\n" +
-            "  ${params.genomes.keySet().join(", ")}\n" +
-            "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        error(error_string)
-    }
-}
-//
 // Generate methods description for MultiQC
 //
 def toolCitationText() {
-    // TODO nf-core: Optionally add in-text citation tools to this list.
-    // Can use ternary operators to dynamically construct based conditions, e.g. params["run_xyz"] ? "Tool (Foo et al. 2023)" : "",
-    // Uncomment function in methodsDescriptionText to render in MultiQC report
     def citation_text = [
-            "Tools used in the workflow included:",
-            "FastQC (Andrews 2010),",
-            "MultiQC (Ewels et al. 2016)",
-            "."
-        ].join(' ').trim()
+        "Tools used in the workflow included:",
+        "FastQC (Andrews 2010),",
+        params.perform_trim                                       ? "Porechop (Wick et al. 2017), Filtlong (Wick 2021),"  : "",
+        params.perform_hostremoval                                ? "Minimap2 (Li 2018), SAMtools (Danecek et al. 2021)," : "",
+        params.perform_assembly                                   ? "Flye (Kolmogorov et al. 2019),"                      : "",
+        params.perform_assembly && !params.skip_quast             ? "QUAST (Gurevich et al. 2013),"                       : "",
+        params.perform_polish_assembly                            ? "Racon (Vaser et al. 2017),"                          : "",
+        params.run_abricate                                       ? "Abricate (Seemann 2020),"                            : "",
+        params.run_rgi                                            ? "RGI (Alcock et al. 2023),"                           : "",
+        params.run_amrfinderplus                                  ? "AMRFinderPlus (Feldgarden et al. 2021),"             : "",
+        params.run_resfinder || params.target_species             ? "ResFinder (Bortolaia et al. 2020),"                  : "",
+        params.run_hamronization                                  ? "hAMRonization (Maguire et al. 2023),"                : "",
+        params.run_profiling && params.run_centrifuge             ? "Centrifuge (Kim et al. 2016),"                       : "",
+        params.run_profiling && params.run_kaiju                  ? "Kaiju (Menzel et al. 2016),"                         : "",
+        (params.run_profiling && !params.skip_krona) || params.target_species ? "Krona (Ondov et al. 2011),"             : "",
+        params.run_plasmidfinder                                  ? "PlasmidFinder (Carattoli et al. 2014),"              : "",
+        params.run_plasclass                                      ? "PlasClass (Pellow et al. 2020),"                     : "",
+        "MultiQC (Ewels et al. 2016)."
+    ].findAll { it }.join(' ').trim()
 
     return citation_text
 }
 
 def toolBibliographyText() {
-    // TODO nf-core: Optionally add bibliographic entries to this list.
-    // Can use ternary operators to dynamically construct based conditions, e.g. params["run_xyz"] ? "<li>Author (2023) Pub name, Journal, DOI</li>" : "",
-    // Uncomment function in methodsDescriptionText to render in MultiQC report
     def reference_text = [
-            "<li>Andrews S, (2010) FastQC, URL: https://www.bioinformatics.babraham.ac.uk/projects/fastqc/).</li>",
-            "<li>Ewels, P., Magnusson, M., Lundin, S., & Käller, M. (2016). MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics , 32(19), 3047–3048. doi: /10.1093/bioinformatics/btw354</li>"
-        ].join(' ').trim()
+        "<li>Andrews S, (2010) FastQC, URL: https://www.bioinformatics.babraham.ac.uk/projects/fastqc/.</li>",
+        params.perform_trim ? "<li>Wick RR, (2017) Porechop, URL: https://github.com/rrwick/Porechop.</li>" : "",
+        params.perform_trim ? "<li>Wick RR, (2021) Filtlong, URL: https://github.com/rrwick/Filtlong.</li>" : "",
+        params.perform_hostremoval ? "<li>Li H, (2018) Minimap2: pairwise alignment for nucleotide sequences. Bioinformatics, 34(18):3094-3100. doi: 10.1093/bioinformatics/bty191.</li>" : "",
+        params.perform_hostremoval ? "<li>Danecek P et al., (2021) Twelve years of SAMtools and BCFtools. Gigascience, 10(2):giab008. doi: 10.1093/gigascience/giab008.</li>" : "",
+        params.perform_assembly ? "<li>Kolmogorov M et al., (2019) Assembly of long, error-prone reads using repeat graphs. Nat Biotechnol, 37:540-546. doi: 10.1038/s41587-019-0072-8.</li>" : "",
+        params.perform_assembly && !params.skip_quast ? "<li>Gurevich A et al., (2013) QUAST: quality assessment tool for genome assemblies. Bioinformatics, 29(8):1072-1075. doi: 10.1093/bioinformatics/btt086.</li>" : "",
+        params.perform_polish_assembly ? "<li>Vaser R et al., (2017) Fast and accurate de novo genome assembly from long uncorrected reads. Genome Res, 27(5):737-746. doi: 10.1101/gr.214270.116.</li>" : "",
+        params.run_abricate ? "<li>Seemann T, (2020) Abricate, URL: https://github.com/tseemann/abricate.</li>" : "",
+        params.run_rgi ? "<li>Alcock BP et al., (2023) CARD 2023: expanded curation, support for machine learning, and resistome prediction at the Comprehensive Antibiotic Resistance Database. Nucleic Acids Res, 51(D1):D690-D699. doi: 10.1093/nar/gkac920.</li>" : "",
+        params.run_amrfinderplus ? "<li>Feldgarden M et al., (2021) AMRFinderPlus and the Reference Gene Catalog facilitate examination of the genomic links among antimicrobial resistance, stress response, and virulence. Sci Rep, 11:12728. doi: 10.1038/s41598-021-91456-0.</li>" : "",
+        params.run_resfinder || params.target_species ? "<li>Bortolaia V et al., (2020) ResFinder 4.0 for predictions of phenotypes from genotypes. J Antimicrob Chemother, 75(12):3491-3500. doi: 10.1093/jac/dkaa345.</li>" : "",
+        params.run_hamronization ? "<li>Maguire M et al., (2023) hAMRonization: Enhancing antimicrobial resistance prediction using a comprehensive tool for standardization of AMR gene detection results. J Antimicrob Chemother. doi: 10.1093/jac/dkad327.</li>" : "",
+        params.run_profiling && params.run_centrifuge || params.target_species ? "<li>Kim D et al., (2016) Centrifuge: rapid and sensitive classification of metagenomic sequences. Genome Res, 26(12):1721-1729. doi: 10.1101/gr.210641.116.</li>" : "",
+        params.run_profiling && params.run_kaiju ? "<li>Menzel P et al., (2016) Fast and sensitive taxonomic classification for metagenomics with Kaiju. Nat Commun, 7:11257. doi: 10.1038/ncomms11257.</li>" : "",
+        (params.run_profiling && !params.skip_krona) || params.target_species ? "<li>Ondov BD et al., (2011) Interactive metagenomic visualization in a Web browser. BMC Bioinformatics, 12:385. doi: 10.1186/1471-2105-12-385.</li>" : "",
+        params.run_plasmidfinder ? "<li>Carattoli A et al., (2014) In Silico Detection and Typing of Plasmids using PlasmidFinder and Plasmid Multilocus Sequence Typing. Antimicrob Agents Chemother, 58(7):3895-3903. doi: 10.1128/AAC.02412-14.</li>" : "",
+        params.run_plasclass ? "<li>Pellow D et al., (2020) PlasClass improves plasmid sequence classification. PLOS Comput Biol, 16(4):e1007781. doi: 10.1371/journal.pcbi.1007781.</li>" : "",
+        "<li>Ewels P et al., (2016) MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics, 32(19):3047-3048. doi: 10.1093/bioinformatics/btw354.</li>"
+    ].findAll { it }.join(' ').trim()
 
     return reference_text
 }
@@ -251,13 +285,8 @@ def methodsDescriptionText(mqc_methods_yaml) {
     meta["nodoi_text"] = meta.manifest_map.doi ? "" : "<li>If available, make sure to update the text to include the Zenodo DOI of version of the pipeline used. </li>"
 
     // Tool references
-    meta["tool_citations"] = ""
-    meta["tool_bibliography"] = ""
-
-    // TODO nf-core: Only uncomment below if logic in toolCitationText/toolBibliographyText has been filled!
-    // meta["tool_citations"] = toolCitationText().replaceAll(", \\.", ".").replaceAll("\\. \\.", ".").replaceAll(", \\.", ".")
-    // meta["tool_bibliography"] = toolBibliographyText()
-
+    meta["tool_citations"] = toolCitationText().replaceAll(", \.", ".").replaceAll("\. \.", ".").replaceAll(", \.", ".")
+    meta["tool_bibliography"] = toolBibliographyText()
 
     def methods_text = mqc_methods_yaml.text
 
