@@ -9,6 +9,7 @@ process PLASCLASS {
 
     input:
     tuple val(meta), path(fasta)
+    val threshold
 
     output:
     tuple val(meta), path("*.plasclass.txt"),     emit: report
@@ -22,7 +23,7 @@ process PLASCLASS {
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
-    def threshold = params.plasclass_threshold ?: 0.9
+    def plasclass_threshold = threshold ?: 0.9
     """
     if [[ ${fasta} == *.gz ]]; then
         gunzip -c ${fasta} > uncompressed.fasta
@@ -36,7 +37,7 @@ process PLASCLASS {
         -f \$input_fasta \\
         -o ${prefix}.plasclass.txt
 
-    awk -v threshold=${threshold} '
+    awk -v threshold=${plasclass_threshold} '
     BEGIN { print "Contig_ID\\tClassification" }
     { if (\$2 >= threshold) print \$1"\\tplasmid";
       else print \$1"\\tchromosome" }

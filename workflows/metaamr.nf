@@ -336,7 +336,7 @@ workflow METAAMR {
     // MODULE: PlasClass
     //
     if (params.run_plasclass) {
-        PLASCLASS(ch_validated_assemblies)
+        PLASCLASS(ch_validated_assemblies, params.plasclass_threshold)
         ch_versions          = ch_versions.mix(PLASCLASS.out.versions.first())
         ch_plasclass_results = PLASCLASS.out.classified
     } else {
