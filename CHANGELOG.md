@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Initial release of nf-core/metaamrplus, created with the [nf-core](https://nf-co.re/) template.
 
 - Nanopore metagenomics AMR detection pipeline with standard assembly-based and target-species read-based modes
-- Trimming and quality filtering with Porechop and Filtlong
+- Trimming and quality filtering with Porechop_ABI and Filtlong
 - Host read removal with Minimap2 and SAMtools
 - Metagenome assembly with Flye, quality assessment with QUAST, and polishing with Racon
 - AMR detection with Abricate, RGI (CARD), AMRFinderPlus, and ResFinder
@@ -26,7 +26,7 @@ Initial release of nf-core/metaamrplus, created with the [nf-core](https://nf-co
 
 | Tool | Version |
 |------|---------|
-| Porechop | 0.2.4 |
+| Porechop_ABI | 0.5.0 |
 | Filtlong | 0.2.1 |
 | Minimap2 | 2.28 |
 | SAMtools | 1.23.1 |

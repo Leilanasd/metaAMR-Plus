@@ -10,9 +10,9 @@
 
 ## Pipeline tools
 
-- [Porechop](https://github.com/rrwick/Porechop)
+- [Porechop_ABI](https://github.com/bonsai-team/Porechop_ABI)
 
-  > Wick RR. (2017). Porechop: adapter trimmer for Oxford Nanopore reads. https://github.com/rrwick/Porechop.
+  > Bonenfant Q, Noé L, Touzet H. (2023) Porechop_ABI: discovering unknown adapters in Oxford Nanopore Technology sequencing reads for downstream trimming. Bioinformatics Advances, 3(1):vbac085. doi: 10.1093/bioadv/vbac085.
 
 - [Filtlong](https://github.com/rrwick/Filtlong)
 

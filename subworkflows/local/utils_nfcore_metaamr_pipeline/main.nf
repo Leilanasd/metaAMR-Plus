@@ -217,7 +217,7 @@ def toolCitationText() {
     def citation_text = [
         "Tools used in the workflow included:",
         "FastQC (Andrews 2010),",
-        params.perform_trim                                       ? "Porechop (Wick et al. 2017), Filtlong (Wick 2021),"  : "",
+        params.perform_trim                                       ? "Porechop_ABI (Bonenfant et al. 2023), Filtlong (Wick 2021),"  : "",
         params.perform_hostremoval                                ? "Minimap2 (Li 2018), SAMtools (Danecek et al. 2021)," : "",
         params.perform_assembly                                   ? "Flye (Kolmogorov et al. 2019),"                      : "",
         params.perform_assembly && !params.skip_quast             ? "QUAST (Gurevich et al. 2013),"                       : "",
@@ -241,7 +241,7 @@ def toolCitationText() {
 def toolBibliographyText() {
     def reference_text = [
         "<li>Andrews S, (2010) FastQC, URL: https://www.bioinformatics.babraham.ac.uk/projects/fastqc/.</li>",
-        params.perform_trim ? "<li>Wick RR, (2017) Porechop, URL: https://github.com/rrwick/Porechop.</li>" : "",
+        params.perform_trim ? "<li>Bonenfant Q et al., (2023) Porechop_ABI: discovering unknown adapters in Oxford Nanopore Technology sequencing reads for downstream trimming. Bioinformatics Advances, 3(1):vbac085. doi: 10.1093/bioadv/vbac085.</li>" : "",
         params.perform_trim ? "<li>Wick RR, (2021) Filtlong, URL: https://github.com/rrwick/Filtlong.</li>" : "",
         params.perform_hostremoval ? "<li>Li H, (2018) Minimap2: pairwise alignment for nucleotide sequences. Bioinformatics, 34(18):3094-3100. doi: 10.1093/bioinformatics/bty191.</li>" : "",
         params.perform_hostremoval ? "<li>Danecek P et al., (2021) Twelve years of SAMtools and BCFtools. Gigascience, 10(2):giab008. doi: 10.1093/gigascience/giab008.</li>" : "",

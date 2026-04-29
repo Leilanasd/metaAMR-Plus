@@ -21,13 +21,13 @@ extra_fn_clean_exts:
   - "_null_raw"
   - "_null"
   - "_kaiju"
-  - "_porechop"
+  - ".porechop_abi"
 
 # Display order for modules (top to bottom as they appear in report)
 module_order:
   - fastqc
   - samtools
-  - porechop
+  - porechop_abi
   - filtlong
   - quast
   - kraken:
@@ -46,7 +46,7 @@ report_section_order:
     order: 1000
   samtools:
     order: 900
-  porechop:
+  porechop_abi:
     order: 800
   filtlong:
     order: 700

@@ -150,9 +150,9 @@
                         "git_sha": "fdde3b3b97c12851bcabc19d17fb0347637c06ed",
                         "installed_by": ["modules"]
                     },
-                    "porechop": {
+                    "porechop/abi": {
                         "branch": "master",
-                        "git_sha": "666652151335353eef2fcd58880bcef5bc2928e1",
+                        "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
                         "installed_by": ["modules"]
                     },
                     "porechop/porechop": {

@@ -6,7 +6,7 @@
 
 include { FASTQC                 } from '../modules/nf-core/fastqc/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
-include { PORECHOP_PORECHOP      } from '../modules/nf-core/porechop/main'
+include { PORECHOP_ABI          } from '../modules/nf-core/porechop/abi/main'
 include { FILTLONG               } from '../modules/nf-core/filtlong/main'
 include { RESFINDER_RUN          } from '../modules/nf-core/resfinder/run/main'
 include { AMRFINDERPLUS_RUN      } from '../modules/nf-core/amrfinderplus/run/main'
@@ -162,12 +162,12 @@ workflow METAAMR {
     // MODULE: Porechop + Filtlong (adapter trimming and quality filtering)
     //
     if (params.perform_trim) {
-        PORECHOP_PORECHOP(ch_samplesheet)
+        PORECHOP_ABI(ch_samplesheet, [])
 
-        ch_clipped_reads = PORECHOP_PORECHOP.out.reads
+        ch_clipped_reads = PORECHOP_ABI.out.reads
             .map { meta, reads ->
                 def readList = reads instanceof List ? reads : [reads]
-                def trimmed = readList.find { it.name.endsWith('_porechop.fastq.gz') } ?: readList[-1]
+                def trimmed = readList.find { it.name.endsWith('.porechop_abi.fastq.gz') } ?: readList[-1]
                 [ meta + [single_end: true], trimmed ]
             }
 
@@ -179,9 +179,9 @@ workflow METAAMR {
                 return !isEmpty
             }
 
-        ch_versions      = ch_versions.mix(PORECHOP_PORECHOP.out.versions.first())
+        ch_versions      = ch_versions.mix(PORECHOP_ABI.out.versions.first())
         ch_versions      = ch_versions.mix(FILTLONG.out.versions.first())
-        ch_multiqc_files = ch_multiqc_files.mix(PORECHOP_PORECHOP.out.log.map { it[1] }.ifEmpty([]))
+        ch_multiqc_files = ch_multiqc_files.mix(PORECHOP_ABI.out.log.map { it[1] }.ifEmpty([]))
         ch_multiqc_files = ch_multiqc_files.mix(FILTLONG.out.log.map { it[1] }.ifEmpty([]))
     } else {
         ch_processed_reads = ch_samplesheet
