@@ -25,7 +25,6 @@ workflow META_ASSEMBLY {
             return !isEmpty
         }
         .set { ch_assembly }
-    // topic channel: FLYE_META versions
 
    
     // for assembly quality evaluation
@@ -34,7 +33,6 @@ workflow META_ASSEMBLY {
         QUAST(ch_assembly, [[],[]], [[],[]])
         ch_quast_results = QUAST.out.results
     }
-    // topic channel: QUAST versions
 
 
 

@@ -22,13 +22,11 @@ workflow READS_HOSTREMOVAL {
 
     if ( !params.hostremoval_index ) {
         ch_minimap2_index = MINIMAP2_INDEX ( [ [], reference ] ).index.map { it[1] }
-        // topic channel: MINIMAP2_INDEX versions
     } else {
         ch_minimap2_index = index
     }
      // Pass FILTLONG processed reads to the alignment step for host removal
     MINIMAP2_ALIGN ( reads , ch_minimap2_index.map { index -> [[id:"reference"], index] }, true, "bai", false, false)
-    // topic channel: MINIMAP2_ALIGN versions
     ch_minimap2_mapped = MINIMAP2_ALIGN.out.bam
         .map {
             meta, reads ->
@@ -37,7 +35,6 @@ workflow READS_HOSTREMOVAL {
 
     // Generate unmapped reads FASTQ for downstream taxprofiling
     SAMTOOLS_VIEW ( ch_minimap2_mapped, [[],[],[]], [[],[]], [[],[]], "bai" )
-    // topic channel: SAMTOOLS_VIEW versions
 
 // Filter for unmapped BAM files ending in "_unmapped.bam" and create a channel for SAMTOOLS_FASTQ
     SAMTOOLS_VIEW.out.bam
@@ -46,17 +43,14 @@ workflow READS_HOSTREMOVAL {
 
     // Convert unmapped BAM to FASTQ
     SAMTOOLS_FASTQ ( ch_unmapped_bam, false )
-    // topic channel: SAMTOOLS_FASTQ versions
 
     // Indexing whole BAM for host removal statistics
     SAMTOOLS_INDEX ( MINIMAP2_ALIGN.out.bam )
-    // topic channel: SAMTOOLS_INDEX versions
 
     bam_bai = MINIMAP2_ALIGN.out.bam
         .join(SAMTOOLS_INDEX.out.index)
 
     SAMTOOLS_STATS ( bam_bai, [[],[],[]] )
-    // topic channel: SAMTOOLS_STATS versions
     ch_multiqc_files = ch_multiqc_files.mix( SAMTOOLS_STATS.out.stats )
 
     ch_versions = ch_versions.mix(Channel.topic('versions'))
