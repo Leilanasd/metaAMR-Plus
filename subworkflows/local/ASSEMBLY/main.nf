@@ -1,15 +1,21 @@
 include { FLYE as FLYE_META } from '../../../modules/nf-core/flye/main'
-include { QUAST } from '../../../modules/nf-core/quast/main' 
+include { QUAST } from '../../../modules/nf-core/quast/main'
 
+//
+// Subworkflow: Metagenome assembly with Flye and optional QUAST quality assessment
+//
 
 workflow META_ASSEMBLY {
 
     take:
-    reads
+    reads // [ val(meta), path(reads) ]
 
     main:
     ch_versions = Channel.empty()
-    def mode = "--nano-hq" 
+
+    // Flye assembly mode — default --nano-hq for modern ONT data (R10.4+, Q20+)
+    // Override with --flye_mode "--nano-raw" for older ONT data (R9.4)
+    def mode = params.flye_mode
     
 
     // meta option for metagenomic assembly

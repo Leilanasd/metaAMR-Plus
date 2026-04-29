@@ -148,6 +148,12 @@
                 "perform_polish_assembly": {
                     "type": "boolean",
                     "description": "Perform assembly polishing"
+                },
+                "flye_mode": {
+                    "type": "string",
+                    "default": "--nano-hq",
+                    "description": "Flye assembly mode. Use --nano-hq for recent ONT data (R10.4+, Q20+) or --nano-raw for older ONT data (R9.4).",
+                    "enum": ["--nano-hq", "--nano-raw", "--nano-corr"]
                 }
                 
             }
