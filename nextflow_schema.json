@@ -309,7 +309,8 @@
                 "arg_hamronization_summarizeformat": {
                     "type": "string",
                     "default": "tsv",
-                    "description": "Summary format for Hamronization"
+                    "enum": ["tsv", "json", "interactive"],
+                    "description": "Summary format for hAMRonization summarize. Options: tsv, json, interactive (html)"
                 },
                 "resfinder_version": {
                     "type": "string",
