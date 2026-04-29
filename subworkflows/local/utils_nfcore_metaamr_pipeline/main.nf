@@ -285,7 +285,7 @@ def methodsDescriptionText(mqc_methods_yaml) {
     meta["nodoi_text"] = meta.manifest_map.doi ? "" : "<li>If available, make sure to update the text to include the Zenodo DOI of version of the pipeline used. </li>"
 
     // Tool references
-    meta["tool_citations"] = toolCitationText().replaceAll(", \.", ".").replaceAll("\. \.", ".").replaceAll(", \.", ".")
+    meta["tool_citations"] = toolCitationText().replaceAll(", \\.", ".").replaceAll("\\. \\.", ".").replaceAll(", \\.", ".")
     meta["tool_bibliography"] = toolBibliographyText()
 
     def methods_text = mqc_methods_yaml.text
