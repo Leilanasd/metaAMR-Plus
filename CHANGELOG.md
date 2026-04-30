@@ -28,7 +28,7 @@ Initial release of nf-core/metaamrplus, created with the [nf-core](https://nf-co
 |------|---------|
 | Porechop_ABI | 0.5.0 |
 | Filtlong | 0.2.1 |
-| Minimap2 | 2.28 |
+| Minimap2 | 2.29 |
 | SAMtools | 1.23.1 |
 | Flye | 2.9.5 |
 | QUAST | 5.3.0 |
@@ -39,7 +39,7 @@ Initial release of nf-core/metaamrplus, created with the [nf-core](https://nf-co
 | ResFinder | 4.1.11 |
 | hAMRonization | 1.1.9 |
 | Centrifuge | 1.0.4 |
-| Kaiju | 1.10.1 |
+| Kaiju | 1.10.0 |
 | PlasmidFinder | 2.1.6 |
 | PlasClass | 0.1.1 |
 | FastQC | 0.12.1 |
