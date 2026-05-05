@@ -41,6 +41,6 @@ workflow POLISH_ASSEMBLY {
     ch_versions = ch_versions.mix(Channel.topic('versions'))
 
     emit:
-    polished_assembly_1 = RACON.out.improved_assembly
+    polished_assembly = RACON.out.improved_assembly
     versions            = ch_versions
 }

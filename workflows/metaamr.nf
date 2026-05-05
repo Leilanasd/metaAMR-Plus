@@ -167,7 +167,7 @@ workflow METAAMR {
         ch_clipped_reads = PORECHOP_ABI.out.reads
             .map { meta, reads ->
                 def readList = reads instanceof List ? reads : [reads]
-                def trimmed = readList.find { it.name.endsWith('.porechop_abi.fastq.gz') } ?: readList[-1]
+                def trimmed = readList.find { it.name.endsWith('_trimmed.fastq.gz') } ?: readList[-1]
                 [ meta + [single_end: true], trimmed ]
             }
 
@@ -230,7 +230,7 @@ workflow METAAMR {
                 ]
             }
         POLISH_ASSEMBLY(ch_polish_input)
-        ch_final_assembly = POLISH_ASSEMBLY.out.polished_assembly_1
+        ch_final_assembly = POLISH_ASSEMBLY.out.polished_assembly
         ch_versions       = ch_versions.mix(POLISH_ASSEMBLY.out.versions)
     } else {
         if (params.perform_polish_assembly && !params.perform_assembly) {

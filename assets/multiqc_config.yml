@@ -21,7 +21,7 @@ extra_fn_clean_exts:
   - "_null_raw"
   - "_null"
   - "_kaiju"
-  - ".porechop_abi"
+  - "_trimmed"
 
 # Display order for modules (top to bottom as they appear in report)
 module_order:

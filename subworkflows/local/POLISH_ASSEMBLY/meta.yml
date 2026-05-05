@@ -14,7 +14,7 @@ input:
       type: channel
       description: Channel containing sample metadata, reads and assembly [ val(meta), path(reads), path(assembly) ]
 output:
-  - polished_assembly_1:
+  - polished_assembly:
       type: channel
       description: Channel containing Racon-polished assembly in gzipped FASTA format [ val(meta), path(fasta.gz) ]
   - versions:
