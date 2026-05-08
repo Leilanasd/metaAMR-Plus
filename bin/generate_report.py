@@ -17,6 +17,7 @@ import sys
 import argparse
 import json
 import csv
+import re
 import glob
 from datetime import datetime
 from collections import defaultdict
@@ -100,6 +101,10 @@ def parse_hamronization(results_dir):
 
             tool_raw = (row.get("analysis_software_name", "") or "").lower().strip()
             tool     = TOOL_LABELS.get(tool_raw, row.get("analysis_software_name", tool_raw))
+
+            # Skip Abricate VFDB entries — they belong in the VF tab not AMR
+            if tool_raw == "abricate":
+                continue
 
             def _pct(key):
                 try:
@@ -814,6 +819,7 @@ body{
       <div class="content-sample-name" id="content-title"></div>
       <div class="tabs">
         <div class="tab active" id="tab-btn-amr"      onclick="switchTab('amr')">AMR <span class="tb" id="tb-amr">0</span></div>
+        <div class="tab"        id="tab-btn-vf"        onclick="switchTab('vf')">Virulence <span class="tb" id="tb-vf">0</span></div>
         <div class="tab"        id="tab-btn-plasmids"  onclick="switchTab('plasmids')">Plasmids <span class="tb" id="tb-plasmids">0</span></div>
         <div class="tab"        id="tab-btn-taxonomy"  onclick="switchTab('taxonomy')">Taxonomy <span class="tb" id="tb-taxonomy">0</span></div>
         <div class="tab"        id="tab-btn-assembly"  onclick="switchTab('assembly')">Assembly <span class="tb" id="tb-assembly">—</span></div>
@@ -826,6 +832,7 @@ body{
         <p>Click any sample in the sidebar to view its AMR findings, taxonomy, plasmid detection, and assembly statistics.</p>
       </div>
       <div id="tab-amr"      class="tab-content" style="display:none"></div>
+      <div id="tab-vf"       class="tab-content" style="display:none"></div>
       <div id="tab-plasmids" class="tab-content" style="display:none"></div>
       <div id="tab-taxonomy" class="tab-content" style="display:none"></div>
       <div id="tab-assembly" class="tab-content" style="display:none"></div>
@@ -991,7 +998,7 @@ function selectSampleDC(s, dc) {
 // ── Tabs ─────────────────────────────────────────────────────────────
 function switchTab(tab) {
   currentTab = tab;
-  ['amr','plasmids','taxonomy','assembly'].forEach(t => {
+  ['amr','vf','plasmids','taxonomy','assembly'].forEach(t => {
     document.getElementById('tab-' + t).style.display        = t === tab ? '' : 'none';
     document.getElementById('tab-btn-' + t).classList.toggle('active', t === tab);
   });
@@ -1002,6 +1009,7 @@ function renderTab(tab) {
   if (!currentSample) return;
   switch(tab) {
     case 'amr':      renderAmr();      break;
+    case 'vf':       renderVF();       break;
     case 'plasmids': renderPlasmids(); break;
     case 'taxonomy': renderTaxonomy(); break;
     case 'assembly': renderAssembly(); break;
@@ -1011,6 +1019,7 @@ function renderTab(tab) {
 function updateBadges() {
   if (!currentSample) return;
   const amr   = DATA.amr[currentSample]      || [];
+  const vfall = DATA.vf[currentSample]       || [];
   const taxa  = DATA.taxonomy[currentSample] || [];
   const pf    = (DATA.plasmids[currentSample] || {}).plasmidfinder || [];
   const asm   = DATA.assembly[currentSample]  || {};
@@ -1019,6 +1028,7 @@ function updateBadges() {
   tbAMR.textContent = amr.length;
   tbAMR.className   = 'tb' + (amr.some(e => isCrit(e.drug_class)) ? ' alarm' : '');
 
+  document.getElementById('tb-vf').textContent       = vfall.length || '0';
   document.getElementById('tb-plasmids').textContent = pf.length || '0';
   document.getElementById('tb-taxonomy').textContent = taxa.length || '0';
   document.getElementById('tb-assembly').textContent =
@@ -1312,6 +1322,87 @@ function renderAssembly() {
   el.innerHTML = html;
 }
 
+// ── Virulence tab ────────────────────────────────────────────────────
+function renderVF() {
+  const el    = document.getElementById('tab-vf');
+  const allVF = DATA.vf[currentSample] || [];
+
+  if (!CONFIG.abricate) {
+    el.innerHTML = emptyState(
+      'Virulence detection was not run.<br>' +
+      'Enable <code>--run_abricate</code> to detect virulence factors.'
+    );
+    return;
+  }
+
+  if (allVF.length === 0) {
+    el.innerHTML = emptyState('No virulence factors detected for this sample.');
+    return;
+  }
+
+  // Group by category, sort by category name
+  const groups = {};
+  allVF.forEach(e => {
+    const cat = e.category || 'Other Virulence';
+    (groups[cat] = groups[cat] || []).push(e);
+  });
+
+  const sortedCats = Object.keys(groups).sort();
+
+  let html = '';
+
+  sortedCats.forEach(cat => {
+    const entries = groups[cat].sort((a,b) => b.identity - a.identity);
+    html += `<div class="dc-group">
+      <div class="dc-hdr" onclick="this.nextElementSibling.style.display=
+        this.nextElementSibling.style.display==='none'?'':'none'">
+        <span>▸</span>
+        <span>${esc(cat)}</span>
+        <span class="dc-cnt">${entries.length}</span>
+      </div>
+      <div class="dc-body">
+        <table class="amr-tbl">
+          <thead><tr>
+            <th>Gene</th>
+            <th>VF Name</th>
+            <th style="width:80px">Identity</th>
+            <th style="width:80px">Coverage</th>
+            ${CONFIG.centrifuge ? '<th style="width:110px">Contig</th>' : ''}
+          </tr></thead>
+          <tbody>`;
+
+    entries.forEach(e => {
+      html += `<tr>
+        <td>
+          <div class="gene-name">${esc(e.gene || '—')}</div>
+          ${e.product ? `<div class="gene-full" title="${esc(e.product)}">${
+            esc(e.product.length > 60 ? e.product.slice(0,58)+'…' : e.product)
+          }</div>` : ''}
+        </td>
+        <td style="font-weight:600;font-size:12px">${esc(e.vf_name || '—')}</td>
+        <td class="${idClass(e.identity)}">${e.identity ? e.identity.toFixed(1)+'%' : '—'}</td>
+        <td style="color:#6b7280">${e.coverage ? e.coverage.toFixed(1)+'%' : '—'}</td>
+        ${CONFIG.centrifuge ? `<td style="font-size:10.5px;font-family:monospace;
+          color:#6b7280">${esc(e.contig || '—')}</td>` : ''}
+      </tr>`;
+    });
+
+    html += '</tbody></table></div></div>';
+  });
+
+  // Cross-reference note
+  if (CONFIG.centrifuge) {
+    html += `<div style="margin-top:10px;font-size:11px;color:#9ca3af;
+      border-top:1px solid #f3f4f6;padding-top:8px">
+      ⓘ Use the <strong>Contig</strong> column to cross-reference with
+      AMR and Plasmids tabs. A virulence gene on a plasmid contig may
+      indicate mobile virulence.
+    </div>`;
+  }
+
+  el.innerHTML = html;
+}
+
 // ── Plasmids tab ─────────────────────────────────────────────────────
 function renderPlasmids() {
   const el        = document.getElementById('tab-plasmids');
@@ -1544,6 +1635,100 @@ def parse_contig_species(results_dir, sample):
     return mapping
 
 
+
+# VF category keyword mapping
+VF_CATEGORIES = [
+    ("Toxins & Enzymes",    ["toxin", "hemolysin", "leukotoxin", "enterotoxin",
+                              "cytolysin", "hyaluronidase", "protease", "lipase",
+                              "phospholipase", "collagenase", "nuclease", "rtx"]),
+    ("Adherence & Biofilm", ["pili", "pilus", "fimbri", "adhesin", "efaa", "ebp",
+                              "biofilm", "attachment", "agglutinin", "hemagglutinin"]),
+    ("Immune Evasion",      ["capsule", "serum", "complement", "immune", "evasion",
+                              "opsonin", "antiphagocytic", "m protein"]),
+    ("Iron Acquisition",    ["iron", "siderophore", "ferric", "heme", "hemoglobin",
+                              "transferrin", "isd", "lactoferrin", "aerobactin"]),
+    ("Invasion",            ["invasin", "invasion", "internalin", "penetrat"]),
+    ("Secretion System",    ["secretion", "effector", "type iii", "type iv",
+                              "type vi", "t3ss", "t4ss", "t6ss"]),
+    ("Regulation",          ["regulator", "transcriptional", "two-component",
+                              "sensor kinase", "response regulator"]),
+]
+
+
+def _extract_vf_name(product):
+    """Extract VF group name from VFDB product string.
+    e.g. '(efaA) desc [EfaA (VF0354)] [Organism]' → 'EfaA'
+    """
+    m = re.search(r"\[([^\[]+?)\s*\(VF\d+\)\]", product)
+    return m.group(1).strip() if m else ""
+
+
+def _categorize_vf(vf_name, product):
+    """Map VF name/product to clinical functional category."""
+    text = (vf_name + " " + product).lower()
+    for category, keywords in VF_CATEGORIES:
+        if any(k in text for k in keywords):
+            return category
+    return "Other Virulence"
+
+
+def parse_abricate_vf(results_dir, sample):
+    """
+    Parse Abricate VFDB output for virulence factor detection.
+    Returns list of VF entry dicts.
+    """
+    filepath = os.path.join(results_dir, "abricate", sample, f"{sample}.txt")
+    results  = []
+
+    if not os.path.exists(filepath):
+        return results
+
+    try:
+        with open(filepath, encoding="utf-8") as fh:
+            for line in fh:
+                if line.startswith("#"):
+                    continue
+                parts = line.rstrip("\n").split("\t")
+                if len(parts) < 14:
+                    continue
+
+                gene      = parts[5].strip()
+                contig    = parts[1].strip()
+                product   = parts[13].strip()
+                database  = parts[11].strip().lower()
+                accession = parts[12].strip()
+
+                if database != "vfdb":
+                    continue
+
+                try:
+                    identity = round(float(parts[10].strip()), 1)
+                except (ValueError, IndexError):
+                    identity = 0.0
+                try:
+                    coverage = round(float(parts[9].strip()), 1)
+                except (ValueError, IndexError):
+                    coverage = 0.0
+
+                vf_name  = _extract_vf_name(product)
+                category = _categorize_vf(vf_name, product)
+
+                results.append({
+                    "gene":      gene,
+                    "vf_name":   vf_name or gene,
+                    "category":  category,
+                    "product":   product,
+                    "identity":  identity,
+                    "coverage":  coverage,
+                    "contig":    contig,
+                    "accession": accession,
+                })
+    except Exception as e:
+        print(f"[generate_report] WARNING: parse_abricate_vf failed for {sample}: {e}")
+
+    return results
+
+
 def _build_identity_index(results_dir, sample):
     """
     Read raw tool outputs to get identity % missing from hAMRonization.
@@ -1625,10 +1810,11 @@ def main():
 
     run_config = detect_run_config(args.results_dir)
     print("[generate_report] Parsing per-sample data…")
-    taxonomy          = {}
-    assembly          = {}
-    plasmids          = {}
-    status            = {}
+    taxonomy           = {}
+    assembly           = {}
+    plasmids           = {}
+    vf                 = {}
+    status             = {}
     contig_species_map = {}
 
     for s in samples:
@@ -1648,6 +1834,7 @@ def main():
             taxon["contigs"] = sp_contigs.get(taxon.get("name", ""), [])
 
         assembly[s] = parse_quast(args.results_dir, s)
+        vf[s]       = parse_abricate_vf(args.results_dir, s)
         plasmids[s] = {
             "plasmidfinder": parse_plasmidfinder(args.results_dir, s),
             "plasclass":     parse_plasclass(args.results_dir, s),
@@ -1682,6 +1869,7 @@ def main():
         "drug_classes":   drug_classes,
         "summary_matrix": summary_matrix,
         "amr":            {s: all_amr.get(s, []) for s in samples},
+        "vf":             vf,
         "contig_species": contig_species_map,
         "taxonomy":       taxonomy,
         "assembly":       assembly,
