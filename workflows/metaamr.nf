@@ -34,6 +34,7 @@ include { PLASCLASS                  } from '../modules/local/plasclass/main'
 include { PROFILING                  } from '../subworkflows/local/PROFILING/main'
 include { TARGET_SPECIES_AMR         } from '../subworkflows/local/TARGET_SPECIES_AMR/main'
 include { COMBINE_CONTIGS_AND_SPECIES } from '../modules/local/combine_contigs_and_species/main'
+include { GENERATE_REPORT              } from '../modules/local/generate_report/main'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -391,6 +392,10 @@ workflow METAAMR {
     //
     
 
+    if (params.target_species && params.run_resfinder) {
+        log.warn "Both --target_species and --run_resfinder are set. Standard ResFinder will run on all reads (resfinder/). Target species ResFinder will run on filtered reads (target_species/amr_results/). Results may overlap. Report will show standard ResFinder output."
+    }
+
     if (params.target_species) {
         ch_reads_for_target = params.perform_hostremoval ? ch_hostremoved
                         : params.perform_trim        ? ch_processed_reads
@@ -459,6 +464,16 @@ workflow METAAMR {
         }
     )
 
+    //
+    // MODULE: HTML Report
+    //
+
+    GENERATE_REPORT(
+        MULTIQC.out.report.map { meta, report -> file(params.outdir).toAbsolutePath().toString() },
+        params.run_name ?: workflow.runName
+    )
+
+    
     emit:
     multiqc_report = MULTIQC.out.report.map { meta, report -> report }.toList()
     versions       = ch_versions
