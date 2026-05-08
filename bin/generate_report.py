@@ -1161,6 +1161,9 @@ function renderTaxonomy() {
     return;
   }
 
+  // Build full contig→species lookup for this sample
+  const fullContigSp = (DATA.contig_species || {})[currentSample] || {};
+
   const maxReads = Math.max(...taxa.map(t => t.reads), 1);
   let html = `<table class="tax-tbl">
     <thead><tr>
@@ -1180,7 +1183,7 @@ function renderTaxonomy() {
       ? (contigs.slice(0,3).map(c => esc(c)).join(', ')
          + (contigs.length > 3 ? ` <span style="color:#9ca3af">+${contigs.length-3} more</span>` : ''))
       : '—';
-    html += `<tr>
+    html += `<tr class="tax-row">
       <td style="color:#9ca3af;text-align:right">${i+1}</td>
       <td><em>${esc(t.name)}</em></td>
       <td class="tax-rank">${esc(t.rank)}</td>
@@ -1208,7 +1211,68 @@ function renderTaxonomy() {
     </div>`;
   }
 
-  el.innerHTML = html;
+  // Contig search box
+  let searchHtml = '';
+  if (CONFIG.centrifuge) {
+    searchHtml = `<div style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
+      <span style="font-size:11px;font-weight:600;color:#6b7280">Search contig:</span>
+      <input type="text" id="contig-search-input"
+        placeholder="e.g. contig_572"
+        style="padding:5px 9px;border:1px solid #d1d5db;border-radius:5px;
+               font-size:12px;font-family:monospace;min-width:180px"
+        oninput="searchContig(this.value)">
+      <span id="contig-search-result" style="font-size:11px;color:#6b7280"></span>
+    </div>`;
+  }
+
+  el.innerHTML = searchHtml + html;
+}
+
+function searchContig(query) {
+  const q = (query || '').trim().toLowerCase();
+  const resultEl = document.getElementById('contig-search-result');
+  const rows = document.querySelectorAll('#tab-taxonomy .tax-row');
+
+  // Reset all highlights
+  rows.forEach(r => {
+    r.style.background = '';
+    r.style.fontWeight = '';
+    r.style.boxShadow = '';
+  });
+
+  if (!q) { if (resultEl) resultEl.textContent = ''; return; }
+
+  const fullContigSp = (DATA.contig_species || {})[currentSample] || {};
+  const assignedSp   = fullContigSp[query] || fullContigSp[query.toLowerCase()] || '';
+
+  // Check if contig is in any top-25 species
+  const taxa = DATA.taxonomy[currentSample] || [];
+  let foundInTop = false;
+
+  rows.forEach((row, i) => {
+    const taxon  = taxa[i];
+    if (!taxon) return;
+    const contigs = (taxon.contigs || []).map(c => c.toLowerCase());
+    if (contigs.includes(q)) {
+      row.style.background = '#bfdbfe';
+      row.style.fontWeight = '700';
+      row.style.boxShadow = 'inset 3px 0 0 #2563eb';
+      row.scrollIntoView({ block: 'nearest' });
+      foundInTop = true;
+    }
+  });
+
+  if (foundInTop) {
+    if (resultEl) resultEl.innerHTML =
+      `<span style="color:#065f46">✓ Found in table above</span>`;
+  } else if (assignedSp) {
+    if (resultEl) resultEl.innerHTML =
+      `<span style="color:#92400e">⚠ Assigned to <em>${esc(assignedSp)}</em>
+       — not in top 25 species</span>`;
+  } else if (query) {
+    if (resultEl) resultEl.innerHTML =
+      `<span style="color:#9ca3af">— Not found in Centrifuge classification</span>`;
+  }
 }
 
 // ── Assembly tab ─────────────────────────────────────────────────────
@@ -1561,16 +1625,18 @@ def main():
 
     run_config = detect_run_config(args.results_dir)
     print("[generate_report] Parsing per-sample data…")
-    taxonomy = {}
-    assembly = {}
-    plasmids = {}
-    status   = {}
+    taxonomy          = {}
+    assembly          = {}
+    plasmids          = {}
+    status            = {}
+    contig_species_map = {}
 
     for s in samples:
         taxonomy[s] = parse_centrifuge(args.results_dir, s)
 
         # Add contig lists to taxonomy entries (contig → species inverted)
         contig_sp = parse_contig_species(args.results_dir, s)
+        contig_species_map[s] = contig_sp
         sp_contigs = {}
         for cid, sp in contig_sp.items():
             sp_contigs.setdefault(sp, []).append(cid)
@@ -1616,6 +1682,7 @@ def main():
         "drug_classes":   drug_classes,
         "summary_matrix": summary_matrix,
         "amr":            {s: all_amr.get(s, []) for s in samples},
+        "contig_species": contig_species_map,
         "taxonomy":       taxonomy,
         "assembly":       assembly,
         "plasmids":       plasmids,
