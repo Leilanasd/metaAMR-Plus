@@ -182,6 +182,93 @@ def parse_centrifuge(results_dir, sample):
         return taxa
 
 
+
+def parse_kaiju(results_dir, sample):
+    """
+    Parse Kaiju summary report ({sample}.txt).
+    Returns list of top-25 species dicts, sorted by reads desc.
+    """
+    filepath = os.path.join(results_dir, "kaiju", sample, f"{sample}.txt")
+    taxa = []
+
+    if not os.path.exists(filepath):
+        return taxa
+
+    try:
+        with open(filepath, encoding="utf-8") as fh:
+            reader = csv.DictReader(fh, delimiter="\t")
+            for row in reader:
+                name = (row.get("taxon_name", "") or "").strip()
+                if not name or "unclassified" in name.lower() or "cannot be assigned" in name.lower() or name.strip() == "-":
+                    continue
+                try:
+                    reads = int(float(row.get("reads", 0) or 0))
+                except (ValueError, TypeError):
+                    reads = 0
+                if reads == 0:
+                    continue
+                try:
+                    abundance = round(float(row.get("percent", 0) or 0), 2)
+                except (ValueError, TypeError):
+                    abundance = 0.0
+                taxa.append({
+                    "name":      name,
+                    "rank":      "species",
+                    "reads":     reads,
+                    "abundance": abundance,
+                    "contigs":   [],
+                })
+        taxa.sort(key=lambda x: x["reads"], reverse=True)
+        return taxa[:25]
+    except Exception as e:
+        print(f"[generate_report] WARNING: parse_kaiju failed for {sample}: {e}")
+        return taxa
+
+
+
+def parse_kaiju_contigs(results_dir, sample):
+    """
+    Build contig→species mapping from Kaiju output.
+    Uses {sample}.tsv (contig→taxid) + {sample}.txt (taxid→name).
+    Returns dict: {contig_id -> species_name}
+    """
+    summary_path = os.path.join(results_dir, "kaiju", sample, f"{sample}.txt")
+    percontig_path = os.path.join(results_dir, "kaiju", sample, f"{sample}.tsv")
+    mapping = {}
+
+    if not os.path.exists(summary_path) or not os.path.exists(percontig_path):
+        return mapping
+
+    try:
+        # Build taxon_id → name lookup from summary
+        taxid_name = {}
+        with open(summary_path, encoding="utf-8") as fh:
+            reader = csv.DictReader(fh, delimiter="\t")
+            for row in reader:
+                tid  = (row.get("taxon_id", "") or "").strip()
+                name = (row.get("taxon_name", "") or "").strip()
+                if tid and name:
+                    taxid_name[tid] = name
+
+        # Build contig → species from per-contig file
+        with open(percontig_path, encoding="utf-8") as fh:
+            for line in fh:
+                parts = line.strip().split("\t")
+                if len(parts) < 3:
+                    continue
+                status   = parts[0].strip()
+                contig   = parts[1].strip()
+                taxid    = parts[2].strip()
+                if status == "C" and contig and taxid in taxid_name:
+                    species = taxid_name[taxid]
+                    if "unclassified" not in species.lower() and                        "cannot be assigned" not in species.lower():
+                        mapping[contig] = species
+    except Exception as e:
+        print(f"[generate_report] WARNING: parse_kaiju_contigs failed for {sample}: {e}")
+
+    return mapping
+
+
 def parse_quast(results_dir, sample):
     """
     Parse QUAST report.tsv.
@@ -236,17 +323,22 @@ def parse_plasmidfinder(results_dir, sample):
         return results
 
     try:
+        seen = set()
         with open(filepath, encoding="utf-8") as fh:
             reader = csv.DictReader(fh, delimiter="\t")
             for row in reader:
                 plasmid = (row.get("Plasmid", "") or "").strip()
                 if not plasmid or "no hit" in plasmid.lower():
                     continue
+                contig = (row.get("Contig", "") or "").strip()
+                if (plasmid.lower(), contig.lower()) in seen:
+                    continue
+                seen.add((plasmid.lower(), contig.lower()))
                 results.append({
                     "plasmid":   plasmid,
                     "identity":  (row.get("Identity", "") or "").strip(),
                     "database":  (row.get("Database", "") or "").strip(),
-                    "contig":    (row.get("Contig", "") or "").strip(),
+                    "contig":    contig,
                     "accession": (row.get("Accession number", "") or "").strip(),
                 })
         return results
@@ -1162,17 +1254,84 @@ function renderAmr() {
 }
 
 // ── Taxonomy tab ─────────────────────────────────────────────────────
+let taxSource = 'centrifuge';  // 'centrifuge' or 'kaiju'
+
+function switchTaxSource(src) {
+  taxSource = src;
+  renderTaxonomy();
+}
+
+function updateToggleButtons() {
+  ['centrifuge','kaiju'].forEach(s => {
+    const btn = document.getElementById('tax-btn-' + s);
+    if (!btn) return;
+    const active = s === taxSource;
+    btn.style.background = active ? '#0f2744' : '#fff';
+    btn.style.color      = active ? '#fff'    : '#374151';
+    btn.style.fontWeight = active ? '700'     : '500';
+    btn.style.border     = '2px solid ' + (active ? '#0f2744' : '#d1d5db');
+  });
+  const note = document.getElementById('tax-src-note');
+  if (note) note.textContent = taxSource === 'centrifuge'
+    ? 'ⓘ Contig-level classification — contig search available'
+    : 'ⓘ Contig-level classification';
+}
+
 function renderTaxonomy() {
-  const el   = document.getElementById('tab-taxonomy');
-  const taxa = DATA.taxonomy[currentSample] || [];
+  const el = document.getElementById('tab-taxonomy');
+
+  // Determine which source to show
+  const useCentrifuge = taxSource === 'centrifuge' || !CONFIG.kaiju;
+  const taxa = useCentrifuge
+    ? (DATA.taxonomy[currentSample] || [])
+    : (DATA.kaiju[currentSample]    || []);
+
+  // Source toggle
+  let toggleHtml = '';
+  if (CONFIG.centrifuge && CONFIG.kaiju) {
+    toggleHtml = `<div style="background:#f8f9fa;border:1px solid #e5e7eb;
+      border-radius:6px;padding:10px 14px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:#6b7280;
+        text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
+        Classification source
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button id="tax-btn-centrifuge"
+          onclick="switchTaxSource('centrifuge')"
+          style="padding:5px 14px;border-radius:5px;cursor:pointer;font-size:12px;
+                 font-weight:${taxSource==='centrifuge'?'700':'500'};
+                 border:2px solid ${taxSource==='centrifuge'?'#0f2744':'#d1d5db'};
+                 background:${taxSource==='centrifuge'?'#0f2744':'#fff'};
+                 color:${taxSource==='centrifuge'?'#fff':'#374151'}">
+          ● Centrifuge
+        </button>
+        <button id="tax-btn-kaiju"
+          onclick="switchTaxSource('kaiju')"
+          style="padding:5px 14px;border-radius:5px;cursor:pointer;font-size:12px;
+                 font-weight:${taxSource==='kaiju'?'700':'500'};
+                 border:2px solid ${taxSource==='kaiju'?'#0f2744':'#d1d5db'};
+                 background:${taxSource==='kaiju'?'#0f2744':'#fff'};
+                 color:${taxSource==='kaiju'?'#fff':'#374151'}">
+          ● Kaiju
+        </button>
+        <span style="font-size:11px;color:#6b7280;margin-left:4px">
+          ${useCentrifuge
+            ? 'ⓘ Contig-level classification — contig search available'
+            : 'ⓘ Contig-level classification'}
+        </span>
+      </div>
+    </div>`;
+  }
 
   if (taxa.length === 0) {
-    el.innerHTML = emptyState('No taxonomy data available.<br>Profiling may have been skipped.');
+    el.innerHTML = toggleHtml + emptyState('No taxonomy data available.<br>Profiling may have been skipped.');
     return;
   }
 
-  // Build full contig→species lookup for this sample
-  const fullContigSp = (DATA.contig_species || {})[currentSample] || {};
+  // Build full contig→species lookup — Centrifuge or Kaiju
+  const fullContigSp = useCentrifuge
+    ? (DATA.contig_species || {})[currentSample] || {}
+    : (DATA.kaiju_contig_species || {})[currentSample] || {};
 
   const maxReads = Math.max(...taxa.map(t => t.reads), 1);
   let html = `<table class="tax-tbl">
@@ -1183,7 +1342,7 @@ function renderTaxonomy() {
       <th style="width:70px">Reads</th>
       <th style="width:70px">Abundance</th>
       <th class="bar-cell">Relative abundance</th>
-      ${CONFIG.centrifuge && CONFIG.assembly ? '<th>Contigs</th>' : ''}
+      ${(CONFIG.centrifuge || CONFIG.kaiju) && CONFIG.assembly ? '<th>Contigs</th>' : ''}
     </tr></thead><tbody>`;
 
   taxa.forEach((t, i) => {
@@ -1204,7 +1363,7 @@ function renderTaxonomy() {
           <div class="bar-fill" style="width:${barPct}%"></div>
         </div>
       </td>
-      ${CONFIG.centrifuge && CONFIG.assembly
+      ${(CONFIG.centrifuge || CONFIG.kaiju) && CONFIG.assembly
         ? `<td style="font-size:10px;font-family:monospace;color:#6b7280">${contigDisplay}</td>`
         : ''}
     </tr>`;
@@ -1222,9 +1381,9 @@ function renderTaxonomy() {
   }
 
   // Contig search box
-  let searchHtml = '';
-  if (CONFIG.centrifuge) {
-    searchHtml = `<div style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
+  let searchHtml = toggleHtml;
+  if (CONFIG.centrifuge || CONFIG.kaiju) {
+    searchHtml += `<div style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
       <span style="font-size:11px;font-weight:600;color:#6b7280">Search contig:</span>
       <input type="text" id="contig-search-input"
         placeholder="e.g. contig_572"
@@ -1236,6 +1395,7 @@ function renderTaxonomy() {
   }
 
   el.innerHTML = searchHtml + html;
+  updateToggleButtons();
 }
 
 function searchContig(query) {
@@ -1252,11 +1412,15 @@ function searchContig(query) {
 
   if (!q) { if (resultEl) resultEl.textContent = ''; return; }
 
-  const fullContigSp = (DATA.contig_species || {})[currentSample] || {};
+  const fullContigSp = taxSource === "kaiju"
+    ? (DATA.kaiju_contig_species || {})[currentSample] || {}
+    : (DATA.contig_species || {})[currentSample] || {};
   const assignedSp   = fullContigSp[query] || fullContigSp[query.toLowerCase()] || '';
 
   // Check if contig is in any top-25 species
-  const taxa = DATA.taxonomy[currentSample] || [];
+  const taxa = taxSource === "kaiju"
+    ? (DATA.kaiju[currentSample] || [])
+    : (DATA.taxonomy[currentSample] || []);
   let foundInTop = false;
 
   rows.forEach((row, i) => {
@@ -1274,7 +1438,7 @@ function searchContig(query) {
 
   if (foundInTop) {
     if (resultEl) resultEl.innerHTML =
-      `<span style="color:#065f46">✓ Found in table above</span>`;
+      `<span style="color:#065f46">✓ Found in table below</span>`;
   } else if (assignedSp) {
     if (resultEl) resultEl.innerHTML =
       `<span style="color:#92400e">⚠ Assigned to <em>${esc(assignedSp)}</em>
@@ -1578,6 +1742,8 @@ buildToolBadges();
 if (DATA.samples.length > 0) {
   selectSample(DATA.samples[0]);
 }
+
+
 </script>
 </body>
 </html>"""
@@ -1810,15 +1976,28 @@ def main():
 
     run_config = detect_run_config(args.results_dir)
     print("[generate_report] Parsing per-sample data…")
-    taxonomy           = {}
-    assembly           = {}
+    taxonomy                = {}
+    kaiju_taxonomy          = {}
+    kaiju_contig_species_map = {}
+    assembly                = {}
     plasmids           = {}
     vf                 = {}
     status             = {}
     contig_species_map = {}
 
     for s in samples:
-        taxonomy[s] = parse_centrifuge(args.results_dir, s)
+        taxonomy[s]       = parse_centrifuge(args.results_dir, s)
+        kaiju_taxonomy[s]           = parse_kaiju(args.results_dir, s)
+        kaiju_contig_species_map[s] = parse_kaiju_contigs(args.results_dir, s)
+        # Add contig lists to Kaiju taxonomy entries
+        kj_sp_contigs = {}
+        for cid, sp in kaiju_contig_species_map[s].items():
+            kj_sp_contigs.setdefault(sp, []).append(cid)
+            parts = sp.split()
+            if len(parts) > 2:
+                kj_sp_contigs.setdefault(' '.join(parts[:2]), []).append(cid)
+        for taxon in kaiju_taxonomy[s]:
+            taxon['contigs'] = kj_sp_contigs.get(taxon.get('name', ''), [])
 
         # Add contig lists to taxonomy entries (contig → species inverted)
         contig_sp = parse_contig_species(args.results_dir, s)
@@ -1870,6 +2049,8 @@ def main():
         "summary_matrix": summary_matrix,
         "amr":            {s: all_amr.get(s, []) for s in samples},
         "vf":             vf,
+        "kaiju":          kaiju_taxonomy,
+        "kaiju_contig_species": kaiju_contig_species_map,
         "contig_species": contig_species_map,
         "taxonomy":       taxonomy,
         "assembly":       assembly,
