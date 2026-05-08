@@ -118,6 +118,7 @@ def parse_hamronization(results_dir):
                 "tool":       tool,
                 "db":         (row.get("reference_database_id", "") or "").strip(),
                 "db_version": (row.get("reference_database_version", "") or "").strip(),
+                "contig":     (row.get("input_sequence_id", "") or "").strip(),
             })
 
     return amr_by_sample
@@ -389,6 +390,7 @@ def parse_resfinder(results_dir, sample):
                 "tool":       "ResFinder",
                 "db":         "ResFinder",
                 "db_version": "",
+                "contig":     (row.get("Contig", "") or "").split()[0].strip(),
             })
 
     return results
@@ -1119,6 +1121,7 @@ function renderAmr() {
             <th style="width:80px">Identity</th>
             <th style="width:80px">Coverage</th>
             <th style="width:90px">Tool</th>
+            ${CONFIG.centrifuge ? '<th style="width:110px">Contig</th>' : ''}
           </tr></thead>
           <tbody>`;
 
@@ -1132,6 +1135,7 @@ function renderAmr() {
         <td class="${idClass(e.identity)}">${e.identity ? e.identity.toFixed(1)+'%' : '—'}</td>
         <td style="color:#6b7280">${e.coverage ? e.coverage.toFixed(1)+'%' : '—'}</td>
         <td><span class="tbadge ${toolBadgeClass(e.tool)}">${esc(e.tool || '—')}</span></td>
+        ${CONFIG.centrifuge ? `<td style="font-size:10.5px;font-family:monospace;color:#6b7280">${esc(e.contig || '—')}</td>` : ''}
       </tr>`;
     });
 
@@ -1166,10 +1170,16 @@ function renderTaxonomy() {
       <th style="width:70px">Reads</th>
       <th style="width:70px">Abundance</th>
       <th class="bar-cell">Relative abundance</th>
+      ${CONFIG.centrifuge && CONFIG.assembly ? '<th>Contigs</th>' : ''}
     </tr></thead><tbody>`;
 
   taxa.forEach((t, i) => {
     const barPct = Math.round(t.reads / maxReads * 100);
+    const contigs = t.contigs || [];
+    const contigDisplay = contigs.length > 0
+      ? (contigs.slice(0,3).map(c => esc(c)).join(', ')
+         + (contigs.length > 3 ? ` <span style="color:#9ca3af">+${contigs.length-3} more</span>` : ''))
+      : '—';
     html += `<tr>
       <td style="color:#9ca3af;text-align:right">${i+1}</td>
       <td><em>${esc(t.name)}</em></td>
@@ -1181,10 +1191,23 @@ function renderTaxonomy() {
           <div class="bar-fill" style="width:${barPct}%"></div>
         </div>
       </td>
+      ${CONFIG.centrifuge && CONFIG.assembly
+        ? `<td style="font-size:10px;font-family:monospace;color:#6b7280">${contigDisplay}</td>`
+        : ''}
     </tr>`;
   });
 
   html += '</tbody></table>';
+
+  // Cross-reference note
+  if (CONFIG.centrifuge && CONFIG.assembly) {
+    html += `<div style="margin-top:8px;font-size:11px;color:#9ca3af;
+      border-top:1px solid #f3f4f6;padding-top:8px">
+      ⓘ Contigs shown are Centrifuge-assigned — indicative only.
+      Use contig IDs to manually cross-reference with AMR and Plasmids tabs.
+    </div>`;
+  }
+
   el.innerHTML = html;
 }
 
@@ -1428,6 +1451,35 @@ def generate_html(data):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+
+def parse_contig_species(results_dir, sample):
+    """
+    Parse Centrifuge contig-level species assignment.
+    Returns dict: {contig_id -> species_name}
+    """
+    filepath = os.path.join(
+        results_dir, "centrifuge", sample,
+        f"{sample}_contigs_species.tsv"
+    )
+    mapping = {}
+
+    if not os.path.exists(filepath):
+        return mapping
+
+    try:
+        with open(filepath, encoding="utf-8") as fh:
+            reader = csv.DictReader(fh, delimiter="\t")
+            for row in reader:
+                contig  = (row.get("Contig_ID", "") or "").strip()
+                species = (row.get("Species",   "") or "").strip()
+                if contig and species and species.lower() not in ("unknown", ""):
+                    mapping[contig] = species
+    except Exception as e:
+        print(f"[generate_report] WARNING: parse_contig_species failed for {sample}: {e}")
+
+    return mapping
+
+
 def _build_identity_index(results_dir, sample):
     """
     Read raw tool outputs to get identity % missing from hAMRonization.
@@ -1516,6 +1568,19 @@ def main():
 
     for s in samples:
         taxonomy[s] = parse_centrifuge(args.results_dir, s)
+
+        # Add contig lists to taxonomy entries (contig → species inverted)
+        contig_sp = parse_contig_species(args.results_dir, s)
+        sp_contigs = {}
+        for cid, sp in contig_sp.items():
+            sp_contigs.setdefault(sp, []).append(cid)
+            # Also map strain-level names to parent species
+            parts = sp.split()
+            if len(parts) > 2:
+                sp_contigs.setdefault(" ".join(parts[:2]), []).append(cid)
+        for taxon in taxonomy[s]:
+            taxon["contigs"] = sp_contigs.get(taxon.get("name", ""), [])
+
         assembly[s] = parse_quast(args.results_dir, s)
         plasmids[s] = {
             "plasmidfinder": parse_plasmidfinder(args.results_dir, s),
