@@ -151,6 +151,11 @@ def parse_centrifuge(results_dir, sample):
         results_dir, "centrifuge", sample,
         f"{sample}_centrifuge_report.txt"
     )
+    if not os.path.exists(filepath):
+        filepath = os.path.join(
+            results_dir, "target_species", "centrifuge", sample,
+            f"{sample}_centrifuge_report.txt"
+        )
     taxa = []
 
     if not os.path.exists(filepath):
@@ -158,6 +163,9 @@ def parse_centrifuge(results_dir, sample):
 
     try:
         with open(filepath, encoding="utf-8") as fh:
+            lines = [l for l in fh if not l.startswith("#")]
+        import io
+        with io.StringIO("".join(lines)) as fh:
             reader = csv.DictReader(fh, delimiter="\t")
             for row in reader:
                 try:
@@ -196,6 +204,9 @@ def parse_kaiju(results_dir, sample):
 
     try:
         with open(filepath, encoding="utf-8") as fh:
+            lines = [l for l in fh if not l.startswith("#")]
+        import io
+        with io.StringIO("".join(lines)) as fh:
             reader = csv.DictReader(fh, delimiter="\t")
             for row in reader:
                 name = (row.get("taxon_name", "") or "").strip()
@@ -325,6 +336,9 @@ def parse_plasmidfinder(results_dir, sample):
     try:
         seen = set()
         with open(filepath, encoding="utf-8") as fh:
+            lines = [l for l in fh if not l.startswith("#")]
+        import io
+        with io.StringIO("".join(lines)) as fh:
             reader = csv.DictReader(fh, delimiter="\t")
             for row in reader:
                 plasmid = (row.get("Plasmid", "") or "").strip()
@@ -431,6 +445,14 @@ def parse_resfinder(results_dir, sample):
     seen = set()
 
     if not os.path.exists(filepath):
+        # Try target species flat file format
+        ts_path = os.path.join(
+            results_dir, "target_species", "amr_results",
+            f"{sample}.resfinder_results.txt"
+        )
+        if os.path.exists(ts_path):
+            filepath = ts_path
+    if not os.path.exists(filepath):
         return results
     json_phenotypes = {}
     json_path = os.path.join(results_dir, "resfinder", sample,
@@ -447,7 +469,11 @@ def parse_resfinder(results_dir, sample):
         except Exception:
             pass
 
+    # Read file, skipping # comment lines (target species mode adds them)
     with open(filepath, encoding="utf-8") as fh:
+        clean_lines = [l for l in fh if not l.startswith("#")]
+    import io
+    with io.StringIO("".join(clean_lines)) as fh:
         reader = csv.DictReader(fh, delimiter="\t")
         for row in reader:
             gene = (row.get("Resistance gene", "") or "").strip()
@@ -511,6 +537,17 @@ def discover_samples(results_dir, amr_by_sample):
             for entry in os.listdir(path):
                 if os.path.isdir(os.path.join(path, entry)):
                     samples.add(entry)
+    # Target species mode — flat files
+    ts_amr = os.path.join(results_dir, "target_species", "amr_results")
+    if os.path.isdir(ts_amr):
+        for fname in os.listdir(ts_amr):
+            if fname.endswith(".resfinder_results.txt"):
+                samples.add(fname.replace(".resfinder_results.txt", ""))
+    ts_cent = os.path.join(results_dir, "target_species", "centrifuge")
+    if os.path.isdir(ts_cent):
+        for entry in os.listdir(ts_cent):
+            if os.path.isdir(os.path.join(ts_cent, entry)):
+                samples.add(entry)
 
     # Filter obvious non-sample names
     samples = {s for s in samples if s and not s.startswith(".")}
@@ -1135,15 +1172,17 @@ function renderAmr() {
   // Build context banners
   let banners = '';
   if (!CONFIG.hamronization) {
+    const tsMsg = CONFIG.target_species
+      ? 'Target species mode — showing ResFinder results for targeted species only. Assembly-based tools (RGI, AMRFinderPlus, Abricate) were not run.'
+      : CONFIG.resfinder
+        ? 'hAMRonization was not run. Showing ResFinder results only. Enable <code>--run_hamronization true</code> for full AMR detection.'
+        : 'No AMR data available. Run with <code>--run_hamronization true</code> and/or <code>--run_resfinder true</code>.';
     banners += `<div style="background:#fef3c7;border-left:3px solid #f59e0b;
       padding:9px 14px;margin-bottom:12px;border-radius:3px;font-size:12px">
-      ⚠ <strong>hAMRonization was not run.</strong>
-      AMR data from RGI, AMRFinderPlus and Abricate requires
-      <code>--run_hamronization true</code>.
-      ${CONFIG.resfinder ? 'Showing ResFinder results only.' : 'No AMR data available.'}
+      ⓘ ${tsMsg}
     </div>`;
   }
-  if (!CONFIG.assembly && CONFIG.resfinder) {
+  if (!CONFIG.assembly && CONFIG.resfinder && !CONFIG.target_species) {
     banners += `<div style="background:#eff6ff;border-left:3px solid #3b82f6;
       padding:9px 14px;margin-bottom:12px;border-radius:3px;font-size:12px">
       ⓘ Assembly was skipped — showing ResFinder results only.
@@ -1272,9 +1311,9 @@ function updateToggleButtons() {
     btn.style.border     = '2px solid ' + (active ? '#0f2744' : '#d1d5db');
   });
   const note = document.getElementById('tax-src-note');
-  if (note) note.textContent = taxSource === 'centrifuge'
+  if (note) note.textContent = CONFIG.assembly
     ? 'ⓘ Contig-level classification — contig search available'
-    : 'ⓘ Contig-level classification';
+    : 'ⓘ Read-level classification — no assembly was run';
 }
 
 function renderTaxonomy() {
@@ -1315,15 +1354,49 @@ function renderTaxonomy() {
           ● Kaiju
         </button>
         <span style="font-size:11px;color:#6b7280;margin-left:4px">
-          ${useCentrifuge
-            ? 'ⓘ Contig-level classification — contig search available'
-            : 'ⓘ Contig-level classification'}
+          ${CONFIG.assembly ? (useCentrifuge ? 'ⓘ Contig-level — contig search available' : 'ⓘ Contig-level') : 'ⓘ Read-level — no assembly'}
+
+
         </span>
       </div>
     </div>`;
   }
 
-  if (taxa.length === 0) {
+  // Target species classification — show prominently if available
+  const targetClass = (DATA.target_classification || {})[currentSample] || [];
+  let targetHtml = '';
+  if (CONFIG.target_species && targetClass.length > 0) {
+    targetHtml = '<div style="margin-bottom:16px;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden">'
+      + '<div style="background:#0f2744;color:#fff;padding:8px 14px;font-size:12px;font-weight:700">'
+      + 'Target Species Classification</div>'
+      + '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+      + '<thead><tr>'
+      + '<th style="padding:6px 10px;background:#f8f9fa;border-bottom:1px solid #e5e7eb;text-align:left">Species</th>'
+      + '<th style="padding:6px 10px;background:#f8f9fa;border-bottom:1px solid #e5e7eb;text-align:right">Reads</th>'
+      + '<th style="padding:6px 10px;background:#f8f9fa;border-bottom:1px solid #e5e7eb">Status</th>'
+      + '<th style="padding:6px 10px;background:#f8f9fa;border-bottom:1px solid #e5e7eb">Confidence</th>'
+      + '</tr></thead><tbody>';
+    targetClass.forEach(t => {
+      const highConf = t.confidence === 'High';
+      targetHtml += '<tr>'
+        + '<td style="padding:7px 10px;border-bottom:1px solid #f3f4f6"><em>' + esc(t.species) + '</em></td>'
+        + '<td style="padding:7px 10px;border-bottom:1px solid #f3f4f6;text-align:right">' + fmtN(t.count) + '</td>'
+        + '<td style="padding:7px 10px;border-bottom:1px solid #f3f4f6">'
+        + '<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">'
+        + esc(t.status) + '</span></td>'
+        + '<td style="padding:7px 10px;border-bottom:1px solid #f3f4f6">'
+        + '<span style="background:' + (highConf ? '#d1fae5;color:#065f46' : '#fef3c7;color:#92400e')
+        + ';padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">'
+        + esc(t.confidence) + '</span></td>'
+        + '</tr>';
+    });
+    targetHtml += '</tbody></table>'
+      + '<div style="padding:6px 14px;font-size:10.5px;color:#9ca3af;background:#f9fafb">'
+      + 'ⓘ High confidence: ≥10 reads. Low confidence: 1–9 reads (possible misclassification).'
+      + '</div></div>';
+  }
+
+  if (taxa.length === 0 && targetClass.length === 0) {
     el.innerHTML = toggleHtml + emptyState('No taxonomy data available.<br>Profiling may have been skipped.');
     return;
   }
@@ -1382,7 +1455,7 @@ function renderTaxonomy() {
 
   // Contig search box
   let searchHtml = toggleHtml;
-  if (CONFIG.centrifuge || CONFIG.kaiju) {
+  if ((CONFIG.centrifuge || CONFIG.kaiju) && CONFIG.assembly) {
     searchHtml += `<div style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
       <span style="font-size:11px;font-weight:600;color:#6b7280">Search contig:</span>
       <input type="text" id="contig-search-input"
@@ -1394,7 +1467,7 @@ function renderTaxonomy() {
     </div>`;
   }
 
-  el.innerHTML = searchHtml + html;
+  el.innerHTML = targetHtml + searchHtml + html;
   updateToggleButtons();
 }
 
@@ -1773,6 +1846,47 @@ def generate_html(data):
 
 
 
+
+def parse_target_classification(results_dir, sample):
+    """
+    Parse target species classification summary.
+    Returns list of detected species with confidence.
+    """
+    filepath = os.path.join(
+        results_dir, "target_species", "classification",
+        f"{sample}.species_summary.txt"
+    )
+    results = []
+
+    if not os.path.exists(filepath):
+        return results
+
+    try:
+        with open(filepath, encoding="utf-8") as fh:
+            for line in fh:
+                if line.startswith("#") or not line.strip():
+                    continue
+                parts = line.strip().split("\t")
+                if len(parts) < 5 or parts[0] == "TaxID":
+                    continue
+                try:
+                    count = int(parts[2])
+                except ValueError:
+                    count = 0
+                results.append({
+                    "taxid":      parts[0].strip(),
+                    "species":    parts[1].strip(),
+                    "count":      count,
+                    "status":     parts[3].strip(),
+                    "confidence": parts[4].strip(),
+                })
+        results.sort(key=lambda x: x["count"], reverse=True)
+    except Exception as e:
+        print(f"[generate_report] WARNING: parse_target_classification failed for {sample}: {e}")
+
+    return results
+
+
 def parse_contig_species(results_dir, sample):
     """
     Parse Centrifuge contig-level species assignment.
@@ -1789,6 +1903,9 @@ def parse_contig_species(results_dir, sample):
 
     try:
         with open(filepath, encoding="utf-8") as fh:
+            lines = [l for l in fh if not l.startswith("#")]
+        import io
+        with io.StringIO("".join(lines)) as fh:
             reader = csv.DictReader(fh, delimiter="\t")
             for row in reader:
                 contig  = (row.get("Contig_ID", "") or "").strip()
@@ -1983,10 +2100,12 @@ def main():
     plasmids           = {}
     vf                 = {}
     status             = {}
-    contig_species_map = {}
+    contig_species_map      = {}
+    target_classification  = {}
 
     for s in samples:
-        taxonomy[s]       = parse_centrifuge(args.results_dir, s)
+        taxonomy[s]              = parse_centrifuge(args.results_dir, s)
+        target_classification[s] = parse_target_classification(args.results_dir, s)
         kaiju_taxonomy[s]           = parse_kaiju(args.results_dir, s)
         kaiju_contig_species_map[s] = parse_kaiju_contigs(args.results_dir, s)
         # Add contig lists to Kaiju taxonomy entries
@@ -2050,6 +2169,7 @@ def main():
         "amr":            {s: all_amr.get(s, []) for s in samples},
         "vf":             vf,
         "kaiju":          kaiju_taxonomy,
+        "target_classification": target_classification,
         "kaiju_contig_species": kaiju_contig_species_map,
         "contig_species": contig_species_map,
         "taxonomy":       taxonomy,
