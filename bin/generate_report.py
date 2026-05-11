@@ -1105,7 +1105,7 @@ function buildSummaryTable() {
       let cls = 'c0';
       if (crit)       cls = 'cc';
       else if (cnt >= 6) cls = 'ch';
-      else if (cnt === 3) cls = 'c3';
+      else if (cnt >= 3) cls = 'c3';
       else if (cnt === 2) cls = 'c2';
       else if (cnt === 1) cls = 'c1';
       html += `<td class="${cls}"
