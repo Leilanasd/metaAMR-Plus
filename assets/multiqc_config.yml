@@ -23,6 +23,8 @@ extra_fn_clean_exts:
   - "_kaiju"
   - "_trimmed"
 
+# Normalise sample names — add sample- prefix to match samplesheet IDs
+
 # Display order for modules (top to bottom as they appear in report)
 module_order:
   - fastqc

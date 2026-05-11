@@ -685,10 +685,21 @@ body{
 
 /* ── Sidebar ────────────────────────────────────────────────────────── */
 .sidebar{
-  width:256px;background:#fff;
-  border-right:1px solid #dce1e9;
+  width:256px;min-width:160px;max-width:650px;background:#fff;
+  border-right:none;
   display:flex;flex-direction:column;
-  flex-shrink:0;overflow:hidden
+  flex-shrink:0;overflow:hidden;position:relative
+}
+.drag-handle{
+  width:5px;background:#dce1e9;cursor:col-resize;flex-shrink:0;
+  transition:background .15s;position:relative;z-index:10
+}
+.drag-handle:hover,.drag-handle.dragging{background:#3b82f6}
+.drag-handle::after{
+  content:'';position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:3px;height:24px;border-radius:2px;
+  background:rgba(0,0,0,.15)
 }
 
 /* section headers inside sidebar */
@@ -704,7 +715,7 @@ body{
 .sb-hdr.collapsed .sb-caret{transform:rotate(-90deg)}
 
 /* summary heatmap */
-.sb-summary-wrap{overflow:auto;max-height:220px;flex-shrink:0}
+.sb-summary-wrap{overflow:auto;max-height:280px;flex-shrink:0}
 .summary-tbl{border-collapse:collapse;font-size:10.5px;width:max-content;min-width:100%}
 .summary-tbl th{
   padding:3px 6px;background:#f9fafb;border:1px solid #e5e7eb;
@@ -719,11 +730,15 @@ body{
 .summary-tbl td.sn:hover{color:#0f2744;text-decoration:underline}
 /* cell heat levels */
 .c0{background:#fff}
-.c1{background:#fef9c3}
-.c2{background:#fde68a}
-.c3{background:#fbbf24;color:#1a1f2e}
-.ch{background:#ef4444;color:#fff;font-weight:700}
-.cc{background:#7f1d1d;color:#fecaca;font-weight:700}   /* critical class + hits */
+.c1{background:#fef9c3;color:#92400e;font-size:10px}
+.c2{background:#fde68a;color:#78350f;font-size:10px;font-weight:600}
+.c3{background:#fbbf24;color:#1a1f2e;font-size:10px;font-weight:700}
+.ch{background:#ef4444;color:#fff;font-size:10px;font-weight:700}
+.cc{background:#7f1d1d;color:#fecaca;font-size:10px;font-weight:700}   /* critical class + hits */
+.vf-1{background:#f0fdf4;color:#166534;font-size:10px}
+.vf-l{background:#86efac;color:#14532d;font-size:10px;font-weight:600}
+.vf-m{background:#22c55e;color:#fff;font-size:10px;font-weight:700}
+.vf-h{background:#15803d;color:#fff;font-size:10px;font-weight:700}
 
 /* sample list */
 .sample-list{flex:1;overflow-y:auto}
@@ -861,7 +876,7 @@ body{
   color:#6b7280;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e5e7eb
 }
 .pf-tbl{width:100%;border-collapse:collapse;font-size:12px}
-.pf-tbl th{padding:5px 10px;background:#f9fafb;border-bottom:1px solid #e5e7eb;
+.pf-tbl th{padding:5px 10px;background:#f9fafb;border-bottom:1px solid #e5e7eb;text-align:left;
   font-weight:600;font-size:10.5px;color:#4b5563}
 .pf-tbl td{padding:6px 10px;border-bottom:1px solid #f3f4f6}
 
@@ -899,7 +914,7 @@ body{
     <div class="hdr-logo-icon">AMR</div>
     <div>
       <div class="hdr-title">metaAMR-Plus</div>
-      <div class="hdr-subtitle">CLINICAL REPORT · __RUN_DATE__</div>
+      <div class="hdr-subtitle">RESEARCH REPORT · __RUN_DATE__ · metaAMR-Plus v__PIPELINE_VER__</div>
     </div>
   </div>
   <div id="hdr-tools" style="display:flex;gap:6px;font-size:10px;align-items:center;
@@ -923,7 +938,7 @@ body{
 <div class="layout">
 
   <!-- ─── Sidebar ─────────────────────────────────────────────────── -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
 
     <!-- Summary heatmap -->
     <div id="summary-section">
@@ -932,6 +947,37 @@ body{
       </div>
       <div class="sb-summary-wrap" id="summary-body">
         <table class="summary-tbl" id="summary-table"></table>
+      </div>
+      <!-- VF heatmap -->
+      <div style="margin-top:16px">
+        <div style="font-size:11px;font-weight:700;color:#166534;text-transform:uppercase;
+          letter-spacing:.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px">
+          <span>Virulence Factor Profile</span>
+          <span style="font-weight:400;color:#9ca3af;font-size:10px">by functional category</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="summary-tbl" id="vf-heatmap-table"></table>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;font-size:10.5px;color:#6b7280">
+          <span style="font-weight:600">Legend:</span>
+          <span style="display:flex;align-items:center;gap:3px"><span style="width:14px;height:14px;background:#fff;border:1px solid #ccc;display:inline-block;border-radius:2px"></span>None</span>
+          <span style="display:flex;align-items:center;gap:3px"><span style="width:14px;height:14px;background:#f0fdf4;border:1px solid #ccc;display:inline-block;border-radius:2px"></span>1–3</span>
+          <span style="display:flex;align-items:center;gap:3px"><span style="width:14px;height:14px;background:#86efac;border:1px solid #ccc;display:inline-block;border-radius:2px"></span>4–7</span>
+          <span style="display:flex;align-items:center;gap:3px"><span style="width:14px;height:14px;background:#22c55e;border:1px solid #ccc;display:inline-block;border-radius:2px"></span>8–14</span>
+          <span style="display:flex;align-items:center;gap:3px"><span style="width:14px;height:14px;background:#15803d;border:1px solid #ccc;display:inline-block;border-radius:2px"></span>≥15</span>
+          <span style="color:#9ca3af;margin-left:4px">· Click cell → Virulence tab</span>
+        </div>
+      </div>
+      <div style="overflow-x:auto" id="dummy-close">
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;font-size:10.5px;color:#6b7280">
+          <span style="font-weight:600">Legend:</span>
+          <span style="display:flex;align-items:center;gap:3px"><span style="width:14px;height:14px;background:#fff;border:1px solid #ccc;display:inline-block;border-radius:2px"></span>None</span>
+          <span style="display:flex;align-items:center;gap:3px"><span style="width:14px;height:14px;background:#fef9c3;border:1px solid #ccc;display:inline-block;border-radius:2px"></span>1-2 genes</span>
+          <span style="display:flex;align-items:center;gap:3px"><span style="width:14px;height:14px;background:#fbbf24;border:1px solid #ccc;display:inline-block;border-radius:2px"></span>3-5 genes</span>
+          <span style="display:flex;align-items:center;gap:3px"><span style="width:14px;height:14px;background:#ef4444;border:1px solid #ccc;display:inline-block;border-radius:2px"></span>6+ genes</span>
+          <span style="display:flex;align-items:center;gap:3px"><span style="width:14px;height:14px;background:#7f1d1d;border:1px solid #ccc;display:inline-block;border-radius:2px"></span>Critical class</span>
+          <span style="color:#9ca3af;margin-left:4px">· Click cell to filter AMR tab</span>
+        </div>
       </div>
     </div>
 
@@ -942,6 +988,7 @@ body{
   </aside>
 
   <!-- ─── Content ─────────────────────────────────────────────────── -->
+  <div class="drag-handle" id="drag-handle"></div>
   <main class="content">
 
     <div class="content-hdr" id="content-hdr" style="display:none">
@@ -980,6 +1027,7 @@ const CONFIG = DATA.config || {};
 let currentSample = null;
 let currentTab    = 'amr';
 let filterDC      = '';
+let filterVFCat   = '';
 let filterQuery   = '';
 
 // ── Utility functions ────────────────────────────────────────────────
@@ -1072,6 +1120,50 @@ function buildSummaryTable() {
 }
 
 // ── Sample list ──────────────────────────────────────────────────────
+
+function buildVFTable() {
+  const el = document.getElementById('vf-heatmap-table');
+  if (!el) return;
+  const cats = DATA.vf_categories || [];
+  const matrix = DATA.vf_matrix || {};
+  if (!cats.length) {
+    el.innerHTML = '<tr><td style="padding:8px;color:#9ca3af;font-size:11px">No virulence data.</td></tr>';
+    return;
+  }
+  // Header
+  let html = '<thead><tr><th class="sc">Sample</th>';
+  cats.forEach(cat => {
+    const label = cat.length > 14 ? cat.slice(0,12) + '…' : cat;
+    html += `<th title="${esc(cat)}" style="padding:3px 4px">` +
+      `<div style="writing-mode:vertical-lr;transform:rotate(180deg);` +
+      `white-space:nowrap;max-height:80px;font-size:9.5px">${esc(label)}</div></th>`;
+  });
+  html += '</tr></thead><tbody>';
+  DATA.samples.forEach(s => {
+    html += `<tr><td class="sn" onclick="selectSample('${esc(s)}')">${esc(s)}</td>`;
+    cats.forEach(cat => {
+      const cnt = (matrix[s] || {})[cat] || 0;
+      let cls = 'c0';
+      if      (cnt >= 15) cls = 'vf-h';
+      else if (cnt >= 8)  cls = 'vf-m';
+      else if (cnt >= 4)  cls = 'vf-l';
+      else if (cnt >= 1)  cls = 'vf-1';
+      html += `<td class="${cls}"
+        onclick="selectSampleVFCat('${esc(s)}','${esc(cat)}')"
+        title="${esc(s)} — ${esc(cat)}: ${cnt} gene(s)">${cnt || ''}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  el.innerHTML = html;
+}
+
+function isMRSA(sample) {
+  return (DATA.amr[sample] || []).some(g =>
+    g.gene && (g.gene.toLowerCase().includes('meca') || g.gene.toLowerCase().includes('mecc'))
+  );
+}
+
 function buildSampleList() {
   const list = document.getElementById('sample-list');
   let html = '';
@@ -1085,6 +1177,7 @@ function buildSampleList() {
       <span>${esc(s)}</span>
       ${amrCount > 0 ? `<span class="si-count">${amrCount}</span>` : ''}
       ${hasCrit ? `<span class="si-badge">!</span>` : ''}
+      ${isMRSA(s) ? `<span style="background:#dc2626;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:2px">MRSA</span>` : ''}
     </div>`;
   });
   list.innerHTML = html;
@@ -1098,6 +1191,7 @@ function selectSample(s) {
   }
   currentSample = s;
   filterDC    = '';
+  filterVFCat = '';
   filterQuery = '';
 
   const el = document.getElementById('si-' + s);
@@ -1114,6 +1208,12 @@ function selectSample(s) {
 
   updateBadges();
   renderTab(currentTab);
+}
+
+function selectSampleVFCat(s, cat) {
+  selectSample(s);
+  filterVFCat = cat;
+  setTimeout(() => switchTab('vf'), 50);
 }
 
 function selectSampleDC(s, dc) {
@@ -1171,6 +1271,9 @@ function renderAmr() {
 
   // Build context banners
   let banners = '';
+  if (isMRSA(currentSample)) {
+    banners += '<div style="background:#fef2f2;border-left:3px solid #dc2626;padding:9px 14px;margin-bottom:12px;border-radius:3px;font-size:12px">🔴 <strong>MRSA detected</strong> — <em>mecA</em> gene present. This isolate is resistant to all beta-lactam antibiotics including meticillin. Treatment with vancomycin, linezolid or daptomycin should be considered.</div>';
+  }
   if (!CONFIG.hamronization) {
     const tsMsg = CONFIG.target_species
       ? 'Target species mode — showing ResFinder results for targeted species only. Assembly-based tools (RGI, AMRFinderPlus, Abricate) were not run.'
@@ -1412,8 +1515,8 @@ function renderTaxonomy() {
       <th style="width:28px">#</th>
       <th>Species</th>
       <th style="width:60px">Rank</th>
-      <th style="width:70px">Reads</th>
-      <th style="width:70px">Abundance</th>
+      <th style="width:70px">${CONFIG.assembly ? 'Contigs' : 'Reads'}</th>
+      <th style="width:70px">${CONFIG.assembly ? '% of contigs' : 'Abundance'}</th>
       <th class="bar-cell">Relative abundance</th>
       ${(CONFIG.centrifuge || CONFIG.kaiju) && CONFIG.assembly ? '<th>Contigs</th>' : ''}
     </tr></thead><tbody>`;
@@ -1448,7 +1551,9 @@ function renderTaxonomy() {
   if (CONFIG.centrifuge && CONFIG.assembly) {
     html += `<div style="margin-top:8px;font-size:11px;color:#9ca3af;
       border-top:1px solid #f3f4f6;padding-top:8px">
-      ⓘ Contigs shown are Centrifuge-assigned — indicative only.
+      ⓘ ${taxSource === 'kaiju'
+        ? 'Contigs shown are Kaiju protein-based — fewer contigs assigned due to stricter classification.'
+        : 'Contigs shown are Centrifuge k-mer based — indicative only.'}
       Use contig IDs to manually cross-reference with AMR and Plasmids tabs.
     </div>`;
   }
@@ -1586,9 +1691,10 @@ function renderVF() {
 
   const sortedCats = Object.keys(groups).sort();
 
-  let html = '';
+  const activeCats = filterVFCat ? sortedCats.filter(c => c === filterVFCat) : sortedCats;
+  let html = filterVFCat ? '<div style="margin-bottom:10px;font-size:11px;color:#6b7280">Category: <strong>' + filterVFCat + '</strong> <button onclick="filterVFCat=\'\';renderVF()" style="cursor:pointer;border:1px solid #d1d5db;border-radius:3px;padding:1px 6px;font-size:10px">✕ Clear</button></div>' : '';
 
-  sortedCats.forEach(cat => {
+  activeCats.forEach(cat => {
     const entries = groups[cat].sort((a,b) => b.identity - a.identity);
     html += `<div class="dc-group">
       <div class="dc-hdr" onclick="this.nextElementSibling.style.display=
@@ -1689,7 +1795,8 @@ function renderPlasmids() {
   </div>`;
 
   // Cross-reference PlasmidFinder hits with PlasClass
-  const pfContigIds = new Set(pf.map(p => (p.contig || '').split(' ')[0]));
+  const pfContigIds  = new Set(pf.map(p => (p.contig || '').split(' ')[0]));
+  const contigSizes  = (DATA.contig_sizes || {})[currentSample] || {};
   const putative    = Object.entries(pcContigs)
     .filter(([cid, cls]) => cls === 'plasmid' && !pfContigIds.has(cid))
     .map(([cid]) => cid);
@@ -1722,7 +1829,7 @@ function renderPlasmids() {
     html += `<table class="pf-tbl" style="margin-bottom:16px">
       <thead><tr>
         <th>Plasmid replicon</th><th>Identity</th><th>Database</th>
-        <th>Contig</th><th>PlasClass</th><th>Status</th>
+        <th>Contig</th><th style="width:70px">Size</th><th>PlasClass</th><th>Status</th>
       </tr></thead><tbody>`;
 
     pf.forEach(p => {
@@ -1741,11 +1848,16 @@ function renderPlasmids() {
         classBadge  = '<span style="color:#9ca3af;font-size:10px">—</span>';
       }
 
+      const sizeBp = contigSizes[cid];
+      const sizeStr = sizeBp ? (sizeBp >= 1000000
+        ? (sizeBp/1000000).toFixed(2) + ' Mb'
+        : Math.round(sizeBp/1000) + ' Kb') : '—';
       html += `<tr>
         <td><strong>${esc(p.plasmid)}</strong></td>
         <td>${esc(p.identity)}</td>
         <td>${esc(p.database)}</td>
         <td style="font-size:10.5px;color:#6b7280">${esc(cid)}</td>
+        <td style="font-size:10.5px;color:#6b7280">${sizeStr}</td>
         <td>${classBadge}</td>
         <td>${statusBadge}</td>
       </tr>`;
@@ -1808,8 +1920,39 @@ function buildToolBadges() {
 
 // ── Init ─────────────────────────────────────────────────────────────
 buildSummaryTable();
+buildVFTable();
 buildSampleList();
 buildToolBadges();
+
+// ── Draggable sidebar ─────────────────────────────────────────────────
+(function() {
+  const handle  = document.getElementById('drag-handle');
+  const sidebar = document.getElementById('sidebar');
+  if (!handle || !sidebar) return;
+  let dragging = false, startX = 0, startW = 0;
+  handle.addEventListener('mousedown', e => {
+    dragging = true;
+    startX   = e.clientX;
+    startW   = sidebar.offsetWidth;
+    handle.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const newW = Math.min(650, Math.max(160, startW + (e.clientX - startX)));
+    sidebar.style.width = newW + 'px';
+  });
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  });
+})();
+
 
 // Auto-select first sample
 if (DATA.samples.length > 0) {
@@ -1818,6 +1961,9 @@ if (DATA.samples.length > 0) {
 
 
 </script>
+  <footer style="text-align:center;padding:8px 20px;font-size:10px;color:#9ca3af;background:#f9fafb;border-top:1px solid #e5e7eb;flex-shrink:0">
+    ⚠ This report is generated by metaAMR-Plus v__PIPELINE_VER__ for research purposes. Generated __RUN_DATE__
+  </footer>
 </body>
 </html>"""
 
@@ -1830,6 +1976,7 @@ def generate_html(data):
 
     html = HTML_TEMPLATE
     html = html.replace("__RUN_DATE__",          data.get("run_date", ""))
+    html = html.replace("__PIPELINE_VER__",      data.get("pipeline_ver", ""))
     html = html.replace("__N_SAMPLES__",         str(n_samples))
     html = html.replace("__N_AMR__",             str(n_amr))
     html = html.replace("__N_CRITICAL__",        str(n_critical))
@@ -1885,6 +2032,49 @@ def parse_target_classification(results_dir, sample):
         print(f"[generate_report] WARNING: parse_target_classification failed for {sample}: {e}")
 
     return results
+
+
+
+def parse_contig_sizes(results_dir, sample):
+    """
+    Parse polished assembly FASTA to get per-contig lengths.
+    Returns dict: {contig_id -> length_bp}
+    """
+    import gzip
+    sizes = {}
+    fasta_path = os.path.join(
+        results_dir, "polished_assemblies", sample,
+        f"{sample}_assembly_consensus.fasta.gz"
+    )
+    # Also try uncompressed
+    if not os.path.exists(fasta_path):
+        fasta_path = fasta_path.replace(".gz", "")
+    if not os.path.exists(fasta_path):
+        return sizes
+    try:
+        opener = gzip.open if fasta_path.endswith(".gz") else open
+        current = None
+        length  = 0
+        with opener(fasta_path, "rt", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if line.startswith(">"):
+                    if current:
+                        sizes[current] = length
+                    # contig_1 from ">contig_1 ..." or ">1 ..."
+                    header = line[1:].split()[0]
+                    # Normalise to contig_N format
+                    if not header.startswith("contig_"):
+                        header = "contig_" + header
+                    current = header
+                    length  = 0
+                else:
+                    length += len(line)
+            if current:
+                sizes[current] = length
+    except Exception as e:
+        print(f"[generate_report] WARNING: parse_contig_sizes failed for {sample}: {e}")
+    return sizes
 
 
 def parse_contig_species(results_dir, sample):
@@ -2101,6 +2291,7 @@ def main():
     vf                 = {}
     status             = {}
     contig_species_map      = {}
+    contig_sizes_map       = {}
     target_classification  = {}
 
     for s in samples:
@@ -2121,6 +2312,7 @@ def main():
         # Add contig lists to taxonomy entries (contig → species inverted)
         contig_sp = parse_contig_species(args.results_dir, s)
         contig_species_map[s] = contig_sp
+        contig_sizes_map[s]   = parse_contig_sizes(args.results_dir, s)
         sp_contigs = {}
         for cid, sp in contig_sp.items():
             sp_contigs.setdefault(sp, []).append(cid)
@@ -2158,6 +2350,21 @@ def main():
     drug_classes, summary_matrix = build_summary_matrix(samples, all_amr)
 
     # ── Assemble data object ─────────────────────────────────────────────────
+    # Build VF summary matrix
+    vf_categories = [
+        'Toxins & Enzymes', 'Iron Acquisition', 'Adherence & Biofilm',
+        'Immune Evasion', 'Invasion & Spread', 'Regulation', 'Other Virulence'
+    ]
+    vf_matrix = {}
+    for s in samples:
+        vf_matrix[s] = {}
+        for g in vf.get(s, []):
+            cat = g.get('category', 'Other Virulence')
+            vf_matrix[s][cat] = vf_matrix[s].get(cat, 0) + 1
+    # Only keep categories that appear in at least one sample
+    vf_cats_present = [c for c in vf_categories
+                       if any(vf_matrix[s].get(c, 0) > 0 for s in samples)]
+
     report_data = {
         "run_date":       datetime.now().strftime("%Y-%m-%d"),
         "run_name":       args.run_name,
@@ -2168,10 +2375,14 @@ def main():
         "summary_matrix": summary_matrix,
         "amr":            {s: all_amr.get(s, []) for s in samples},
         "vf":             vf,
+        "virulence":      vf,
+        "vf_matrix":      vf_matrix,
+        "vf_categories":  vf_cats_present,
         "kaiju":          kaiju_taxonomy,
         "target_classification": target_classification,
         "kaiju_contig_species": kaiju_contig_species_map,
         "contig_species": contig_species_map,
+        "contig_sizes":   contig_sizes_map,
         "taxonomy":       taxonomy,
         "assembly":       assembly,
         "plasmids":       plasmids,
