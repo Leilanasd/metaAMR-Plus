@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/nf-core/metaamrplus/master/nextflow_schema.json",
-    "title": "nf-core/metaamrplus pipeline parameters",
+    "$id": "https://raw.githubusercontent.com/Clinical-Genomics-Linkoping/Meta-AMR-Plus/master/nextflow_schema.json",
+    "title": "metaAMR-Plus pipeline parameters",
     "description": "MetaAMR: A Nextflow pipeline for long-read metagenomics classification and antimicrobial resistance detection",
     "type": "object",
     "$defs": {
