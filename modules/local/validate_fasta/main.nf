@@ -35,7 +35,7 @@ process VALIDATE_FASTA {
     fi
 
     # Sanitize FASTA headers to simple sequential contig IDs
-    awk '/^>/ {print $1} !/^>/ {print}' "${input_file}" > "${meta.id}_validated.fasta"
+    awk '/^>/ {print \$1} !/^>/ {print}' "${input_file}" > "${meta.id}_validated.fasta"
 
     # Validate that the sanitized FASTA is non-empty and starts with ">"
     if [[ ! -s "${meta.id}_validated.fasta" ]] || [[ "\$(head -c 1 ${meta.id}_validated.fasta)" != ">" ]]; then
