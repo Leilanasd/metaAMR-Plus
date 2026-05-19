@@ -45,7 +45,7 @@ process QUAST {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        quast: \$(quast --version | sed "s/QUAST v//g")
+        quast: \$(quast --version 2>/dev/null | grep -v WARNING | sed "s/QUAST v//g")
     END_VERSIONS
     """
 
