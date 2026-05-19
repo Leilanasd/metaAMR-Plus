@@ -10,3 +10,5 @@ null/
 *.bak
 samplesheet*.csv
 database*.csv
+assets/test_data/*.fastq.gz
+assets/test_data/*.fastq

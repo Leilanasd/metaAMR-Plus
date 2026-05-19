@@ -26,6 +26,7 @@ include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_meta
 
 include { READS_HOSTREMOVAL          } from '../subworkflows/local/HOSTREMOVAL/main'
 include { META_ASSEMBLY              } from '../subworkflows/local/ASSEMBLY/main'
+include { QUAST                        } from '../modules/nf-core/quast/main'
 include { POLISH_ASSEMBLY            } from '../subworkflows/local/POLISH_ASSEMBLY/main'
 include { PREPARE_TOOL_DBS           } from '../subworkflows/local/prepare_tool_dbs/main'
 include { HAMRONIZATION              } from '../subworkflows/local/HAMRONIZATION/main'
@@ -241,13 +242,36 @@ workflow METAAMR {
     }
 
     //
+    // MODULE: FASTA validation — normalise contig names for all downstream tools
+    // Must run before any tool that uses assembly as input so all tools
+    // use identical contig names for cross-referencing in the report.
+    //
+    if (params.perform_assembly) {
+        VALIDATE_FASTA(ch_final_assembly)
+        ch_validated_assemblies = VALIDATE_FASTA.out.validated_fasta
+    } else {
+        ch_validated_assemblies = ch_final_assembly
+    }
+
+    //
+    // MODULE: QUAST — assembly quality on validated assembly
+    // Runs on polished assembly if polishing was performed, raw otherwise.
+    // Stats reflect the exact contigs used by all downstream tools.
+    //
+    if (params.perform_assembly) {
+        QUAST(ch_validated_assemblies, [[],[]], [[],[]])
+        ch_quast    = QUAST.out.results
+        ch_versions = ch_versions.mix(QUAST.out.versions.first())
+        ch_multiqc_files = ch_multiqc_files.mix(ch_quast.collect { it[1] }.ifEmpty([]))
+    }
+
+    //
     // MODULE: ResFinder
     //
     if (params.run_resfinder) {
         // Select best available input: polished assembly > assembly > host-removed > trimmed reads
-        ch_resfinder_input = params.perform_polish_assembly ? ch_final_assembly
-                           : params.perform_assembly        ? ch_assembly
-                           : params.perform_hostremoval     ? ch_hostremoved
+        ch_resfinder_input = params.perform_assembly    ? ch_validated_assemblies
+                           : params.perform_hostremoval ? ch_hostremoved
                            : ch_processed_reads
 
         // Route input to correct FASTQ or FASTA argument slot
@@ -274,7 +298,7 @@ workflow METAAMR {
     // MODULE: Abricate
     //
     if (params.run_abricate) {
-        ABRICATE_RUN(ch_final_assembly, params.arg_abricate_db)
+        ABRICATE_RUN(ch_validated_assemblies, params.arg_abricate_db)
         ch_versions          = ch_versions.mix(ABRICATE_RUN.out.versions.first())
         ch_abricate_results  = ABRICATE_RUN.out.report
         ch_multiqc_files     = ch_multiqc_files.mix(ABRICATE_RUN.out.report.map { meta, report -> report }.ifEmpty([]))
@@ -287,7 +311,7 @@ workflow METAAMR {
     //
     if (params.run_amrfinderplus) {
         AMRFINDERPLUS_RUN(
-            ch_final_assembly,
+            ch_validated_assemblies,
             PREPARE_TOOL_DBS.out.amrfinderplus_db
         )
         ch_versions             = ch_versions.mix(AMRFINDERPLUS_RUN.out.versions.first())
@@ -301,7 +325,7 @@ workflow METAAMR {
     //
     if (params.run_rgi) {
         RGI_MAIN(
-            ch_final_assembly,
+            ch_validated_assemblies,
             PREPARE_TOOL_DBS.out.rgi_db,
             []
         )
@@ -312,15 +336,7 @@ workflow METAAMR {
         ch_rgi_results = Channel.empty()
     }
 
-    //
-    // MODULE: FASTA validation (required by PlasmidFinder and PlasClass)
-    //
-    if (params.run_plasmidfinder || params.run_plasclass) {
-        VALIDATE_FASTA(ch_final_assembly)
-        ch_validated_assemblies = VALIDATE_FASTA.out.validated_fasta
-    } else {
-        ch_validated_assemblies = ch_final_assembly
-    }
+
 
     //
     // MODULE: PlasmidFinder
@@ -367,9 +383,9 @@ workflow METAAMR {
     // SUBWORKFLOW: Taxonomic profiling
     //
     if (params.run_profiling && !params.target_species) {
-        // ch_final_assembly contains contigs if --perform_assembly, or reads otherwise
-        // Profiling works on either — Centrifuge/Kaiju accept both FASTA and FASTQ
-        ch_profiling_input = ch_final_assembly.map { meta, assembly -> [ meta, [assembly] ] }
+        // ch_validated_assemblies contains normalised contigs if --perform_assembly,
+        // or reads otherwise — Centrifuge/Kaiju accept both FASTA and FASTQ
+        ch_profiling_input = ch_validated_assemblies.map { meta, assembly -> [ meta, [assembly] ] }
 
         PROFILING(ch_profiling_input, ch_databases)
         ch_versions      = ch_versions.mix(PROFILING.out.versions)
@@ -446,7 +462,6 @@ workflow METAAMR {
         ch_multiqc_files = ch_multiqc_files.mix(READS_HOSTREMOVAL.out.mqc.map { meta, stats -> stats }.ifEmpty([]))
     }
     if (params.perform_assembly) {
-        ch_multiqc_files = ch_multiqc_files.mix(ch_quast.collect { it[1] }.ifEmpty([]))
     }
 
     MULTIQC(

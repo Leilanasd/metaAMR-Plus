@@ -71,6 +71,18 @@ def _strip_sample_name(raw):
     return name
 
 
+def _norm_contig(cid):
+    """
+    Normalise a contig ID so lookups always succeed regardless of whether
+    the assembler/tool uses plain numbers (1, 2) or prefixed names (contig_1).
+    """
+    cid = (cid or '').split()[0].strip()
+    if cid and not cid.startswith('contig_'):
+        cid = 'contig_' + cid
+    return cid
+
+
+
 def parse_hamronization(results_dir):
     """
     Parse the hAMRonization combined report.
@@ -352,7 +364,7 @@ def parse_plasmidfinder(results_dir, sample):
                     "plasmid":   plasmid,
                     "identity":  (row.get("Identity", "") or "").strip(),
                     "database":  (row.get("Database", "") or "").strip(),
-                    "contig":    contig,
+                    "contig":    _norm_contig(contig),
                     "accession": (row.get("Accession number", "") or "").strip(),
                 })
         return results
@@ -384,6 +396,7 @@ def parse_plasclass(results_dir, sample):
             cls       = parts[1].strip().lower()
             if contig_id == "Contig_ID" or cls == "classification":
                 continue  # skip header
+            contig_id = _norm_contig(contig_id)
             if cls in ("plasmid", "chromosome"):
                 result[cls] += 1
             else:
@@ -1278,8 +1291,13 @@ function renderAmr() {
     const tsMsg = CONFIG.target_species
       ? 'Target species mode — showing ResFinder results for targeted species only. Assembly-based tools (RGI, AMRFinderPlus, Abricate) were not run.'
       : CONFIG.resfinder
-        ? 'hAMRonization was not run. Showing ResFinder results only. Enable <code>--run_hamronization true</code> for full AMR detection.'
-        : 'No AMR data available. Run with <code>--run_hamronization true</code> and/or <code>--run_resfinder true</code>.';
+        ? (() => {
+          const hasOtherTools = CONFIG.rgi || CONFIG.amrfinderplus || CONFIG.abricate;
+          return hasOtherTools
+            ? 'hAMRonization was not run. Enable <code>--run_hamronization</code> to integrate results from RGI, AMRFinderPlus and Abricate.'
+            : 'Showing ResFinder results. To run additional AMR tools (RGI, AMRFinderPlus, Abricate), enable <code>--run_rgi</code>, <code>--run_amrfinderplus</code>, <code>--run_abricate</code> and <code>--run_hamronization</code>.';
+        })()
+        : 'No AMR data available. Enable <code>--run_resfinder</code> and/or assembly-based tools with <code>--run_hamronization</code>.';
     banners += `<div style="background:#fef3c7;border-left:3px solid #f59e0b;
       padding:9px 14px;margin-bottom:12px;border-radius:3px;font-size:12px">
       ⓘ ${tsMsg}
@@ -1869,9 +1887,9 @@ function renderPlasmids() {
   if (putative.length > 0) {
     html += `<div class="section-title">Putative plasmids — ${putative.length} contig${putative.length !== 1 ? 's' : ''} (PlasClass only)</div>`;
     html += `<p style="font-size:11.5px;color:#6b7280;margin-bottom:8px;line-height:1.6">
-      These contigs were classified as plasmid-like by PlasClass but have no matching
-      replicon in PlasmidFinder. They may carry novel or uncharacterised plasmids,
-      or represent PlasClass misclassification.
+      ${CONFIG.plasmidfinder
+        ? 'These contigs were classified as plasmid-like by PlasClass but have no matching replicon in PlasmidFinder. They may carry novel or uncharacterised plasmids, or represent PlasClass misclassification.'
+        : 'These contigs were classified as plasmid-like by PlasClass. PlasmidFinder was not run — enable <code>--run_plasmidfinder</code> to search for known replicons.'}
     </p>`;
     html += `<div style="font-size:11px;font-family:monospace;background:#f9fafb;
       border:1px solid #e5e7eb;border-radius:4px;padding:10px;
@@ -2042,36 +2060,55 @@ def parse_contig_sizes(results_dir, sample):
     """
     import gzip
     sizes = {}
+    # 1. Validated assembly — matches contig names used by ALL tools
     fasta_path = os.path.join(
-        results_dir, "polished_assemblies", sample,
-        f"{sample}_assembly_consensus.fasta.gz"
+        results_dir, "validated_assemblies", sample,
+        f"{sample}_validated.fasta"
     )
-    # Also try uncompressed
+    # 2. Fall back to polished assembly
     if not os.path.exists(fasta_path):
-        fasta_path = fasta_path.replace(".gz", "")
+        fasta_path = os.path.join(
+            results_dir, "polished_assemblies", sample,
+            f"{sample}_assembly_consensus.fasta.gz"
+        )
+    if not os.path.exists(fasta_path):
+        fasta_path = os.path.join(
+            results_dir, "polished_assemblies", sample,
+            f"{sample}_assembly_consensus.fasta"
+        )
+    # 3. Fall back to raw Flye assembly
+    if not os.path.exists(fasta_path):
+        fasta_path = os.path.join(
+            results_dir, "assemblies", sample,
+            f"{sample}.assembly.fasta.gz"
+        )
+    if not os.path.exists(fasta_path):
+        fasta_path = os.path.join(
+            results_dir, "assemblies", sample,
+            f"{sample}.assembly.fasta"
+        )
     if not os.path.exists(fasta_path):
         return sizes
     try:
         opener = gzip.open if fasta_path.endswith(".gz") else open
-        current = None
-        length  = 0
+        current_keys = []
+        length = 0
         with opener(fasta_path, "rt", encoding="utf-8") as fh:
             for line in fh:
                 line = line.strip()
                 if line.startswith(">"):
-                    if current:
-                        sizes[current] = length
-                    # contig_1 from ">contig_1 ..." or ">1 ..."
-                    header = line[1:].split()[0]
-                    # Normalise to contig_N format
-                    if not header.startswith("contig_"):
-                        header = "contig_" + header
-                    current = header
-                    length  = 0
+                    if current_keys:
+                        for k in current_keys:
+                            sizes[k] = length
+                    raw  = line[1:].split()[0]       # e.g. "contig_1" or "1"
+                    norm = _norm_contig(raw)          # always "contig_1"
+                    current_keys = list({raw, norm})  # store both, deduplicated
+                    length = 0
                 else:
                     length += len(line)
-            if current:
-                sizes[current] = length
+            if current_keys:
+                for k in current_keys:
+                    sizes[k] = length
     except Exception as e:
         print(f"[generate_report] WARNING: parse_contig_sizes failed for {sample}: {e}")
     return sizes

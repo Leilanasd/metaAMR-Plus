@@ -1,7 +1,7 @@
 process VALIDATE_FASTA {
     tag "$meta.id"
     label 'process_low'
-
+    publishDir "${params.outdir}/validated_assemblies/${meta.id}", mode: params.publish_dir_mode, saveAs: { filename -> filename }
     conda "conda-forge::bash=5.2"
     container "${ workflow.containerEngine == 'singularity' ?
         'https://depot.galaxyproject.org/singularity/ubuntu:20.04' :

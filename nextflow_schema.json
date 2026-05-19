@@ -145,11 +145,6 @@
                     "type": "boolean",
                     "description": "Perform genome assembly"
                 },
-                "skip_quast": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Skip QUAST assembly quality assessment"
-                },
                 "perform_polish_assembly": {
                     "type": "boolean",
                     "description": "Perform assembly polishing"

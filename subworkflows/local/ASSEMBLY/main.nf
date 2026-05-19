@@ -1,5 +1,4 @@
 include { FLYE as FLYE_META } from '../../../modules/nf-core/flye/main'
-include { QUAST } from '../../../modules/nf-core/quast/main'
 
 //
 // Subworkflow: Metagenome assembly with Flye and optional QUAST quality assessment
@@ -33,12 +32,9 @@ workflow META_ASSEMBLY {
         .set { ch_assembly }
 
    
-    // for assembly quality evaluation
+    // QUAST now runs in main workflow on validated assembly
+    // (polished if polishing was run, raw otherwise)
     ch_quast_results = Channel.empty()
-    if (!params.skip_quast) {
-        QUAST(ch_assembly, [[],[]], [[],[]])
-        ch_quast_results = QUAST.out.results
-    }
 
 
 

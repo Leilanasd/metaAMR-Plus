@@ -1,158 +1,205 @@
-<!-- <h1>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/nf-core-metaamrplus_logo_dark.png">
-    <img alt="nf-core/metaamrplus" src="docs/images/nf-core-metaamrplus_logo_light.png">
-  </picture>
-</h1>
-
-[![GitHub Actions CI Status](https://github.com/nf-core/metaamrplus/actions/workflows/ci.yml/badge.svg)](https://github.com/nf-core/metaamrplus/actions/workflows/ci.yml)
-[![GitHub Actions Linting Status](https://github.com/nf-core/metaamrplus/actions/workflows/linting.yml/badge.svg)](https://github.com/nf-core/metaamrplus/actions/workflows/linting.yml)[![AWS CI](https://img.shields.io/badge/CI%20tests-full%20size-FF9900?labelColor=000000&logo=Amazon%20AWS)](https://nf-co.re/metaamr/results)[![Cite with Zenodo](http://img.shields.io/badge/DOI-10.5281/zenodo.15682600-1073c8?labelColor=000000)](https://doi.org/10.5281/zenodo.15682600)
-[![nf-test](https://img.shields.io/badge/unit_tests-nf--test-337ab7.svg)](https://www.nf-test.com)
-
-[![Nextflow](https://img.shields.io/badge/version-%E2%89%A524.04.2-green?style=flat&logo=nextflow&logoColor=white&color=%230DC09D&link=https%3A%2F%2Fnextflow.io)](https://www.nextflow.io/)
-[![nf-core template version](https://img.shields.io/badge/nf--core_template-3.5.2-green?style=flat&logo=nfcore&logoColor=white&color=%2324B064&link=https%3A%2F%2Fnf-co.re)](https://github.com/nf-core/tools/releases/tag/3.5.2)
-[![run with conda](http://img.shields.io/badge/run%20with-conda-3EB049?labelColor=000000&logo=anaconda)](https://docs.conda.io/en/latest/)
-[![run with docker](https://img.shields.io/badge/run%20with-docker-0db7ed?labelColor=000000&logo=docker)](https://www.docker.com/)
-[![run with singularity](https://img.shields.io/badge/run%20with-singularity-1d355c.svg?labelColor=000000)](https://sylabs.io/docs/)
-[![Launch on Seqera Platform](https://img.shields.io/badge/Launch%20%F0%9F%9A%80-Seqera%20Platform-%234256e7)](https://cloud.seqera.io/launch?pipeline=https://github.com/nf-core/metaamrplus)
-
-[![Get help on Slack](http://img.shields.io/badge/slack-nf--core%20%23metaamr-4A154B?labelColor=000000&logo=slack)](https://nfcore.slack.com/channels/metaamr)[![Follow on Twitter](http://img.shields.io/badge/twitter-%40nf__core-1DA1F2?labelColor=000000&logo=twitter)](https://twitter.com/nf_core)[![Follow on Mastodon](https://img.shields.io/badge/mastodon-nf__core-6364ff?labelColor=FFFFFF&logo=mastodon)](https://mstdn.science/@nf_core)[![Watch on YouTube](http://img.shields.io/badge/youtube-nf--core-FF0000?labelColor=000000&logo=youtube)](https://www.youtube.com/c/nf-core) -->
-
-<h1>Meta-AMR-Plus</h1>
+# metaAMR-Plus
 
 [![Cite with Zenodo](http://img.shields.io/badge/DOI-10.5281/zenodo.15682600-1073c8?labelColor=000000)](https://doi.org/10.5281/zenodo.15682600)
+[![Nextflow](https://img.shields.io/badge/version-%E2%89%A524.04.2-green?style=flat&logo=nextflow)](https://www.nextflow.io/)
+[![run with singularity](https://img.shields.io/badge/run%20with-singularity-1d355c.svg?labelColor=000000)](https://sylabs.io/docs/)
+[![run with docker](https://img.shields.io/badge/run%20with-docker-0db7ed?labelColor=000000&logo=docker)](https://www.docker.com/)
 
 ## Introduction
 
-**Meta-AMR-Plus** is a NextFlow pipeline designed for analyzing long-read Nanopore metagenomic data. It detects antimicrobial resistance (AMR) genes, identifies plasmids, and performs taxonomic classification using multiple tools and reference databases. The pipeline processes sequencing data efficiently and generates standardized output tables, making it easier to compare results across different tools and datasets.
+**metaAMR-Plus** is a Nextflow pipeline for comprehensive analysis of long-read Nanopore metagenomic data. It detects antimicrobial resistance (AMR) genes, identifies plasmids and virulence factors, and performs taxonomic classification using multiple parallel tools and databases. Results are integrated into a single interactive HTML report.
 
+The pipeline supports two main modes:
+
+- **Standard mode** — full analysis with optional assembly, AMR detection, plasmid detection, and taxonomic profiling
+- **Target species mode** — extract and analyse reads from specific target organisms (e.g. known pathogens of interest)
+
+## Pipeline overview
+
+```
+Input reads (Nanopore FASTQ)
+    │
+    ├── Quality control (FastQC)
+    ├── Adapter trimming (Porechop_ABI)
+    ├── Length filtering (Filtlong)
+    └── Host removal (Minimap2)
+         │
+         ├── [WITH ASSEMBLY]
+         │    ├── Assembly (Flye) → QC (QUAST) → Polishing (Racon)
+         │    ├── AMR detection:        RGI · AMRFinderPlus · ResFinder
+         │    ├── Virulence detection:  Abricate (VFDB)
+         │    ├── AMR integration:      hAMRonization
+         │    ├── Plasmid detection:    PlasmidFinder · PlasClass
+         │    └── Taxonomic profiling:  Centrifuge · Kaiju · Krona
+         │
+         ├── [WITHOUT ASSEMBLY]
+         │    ├── ResFinder (reads-based)
+         │    └── Taxonomic profiling:  Centrifuge · Kaiju · Krona
+         │
+         └── [TARGET SPECIES MODE]
+              ├── Classification (Centrifuge)
+              ├── Read extraction (target species only)
+              └── AMR detection (ResFinder)
+                   │
+                   ▼
+         MultiQC + Interactive HTML report
+```
+
+## Quick start
+
+1. Install [Nextflow](https://www.nextflow.io/docs/latest/getstarted.html) (≥24.04.2)
+2. Install [Singularity](https://docs.sylabs.io) or [Docker](https://www.docker.com/)
+3. Prepare your samplesheet (see [usage](docs/usage.md))
+4. Run the pipeline:
+
+```bash
+nextflow run /path/to/metaAMR-Plus \
+    -profile singularity \
+    --input samplesheet.csv \
+    --outdir results \
+    --perform_trim \
+    --perform_hostremoval \
+    --hostremoval_reference /path/to/host.fa \
+    --perform_assembly \
+    --perform_polish_assembly \
+    --run_rgi --run_amrfinderplus --run_resfinder --run_abricate \
+    --run_hamronization \
+    --run_profiling --run_centrifuge --run_kaiju \
+    --run_plasmidfinder --run_plasclass \
+    --databases databases.csv \
+    --download_rgi_db \
+    --download_resfinder_db \
+    --download_amrfinderplus_db
+```
+
+> If you have existing local databases, provide them in `databases.csv` instead of using the download flags.
 
 ## Features
 
-1. Read QC ([`FastQC`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))
-2. Performs read pre-processing
-  - Adapter clipping and merging (`porechop`)
-  - Low complexity and quality filtering (`Filtlong`)
-  - Host-read removal (`Minimap2`)
-3. Generates statistics for host-read removal using `Samtools`.
-4. Performs optional genome assembly with `Flye` and assesses assembly quality using `QUAST`.
-5. Optionally polishes the assembly using `Racon`.
-6. Optionally downloads databases for AMR detection tools and PlasmidFinder if not provided by the user.
-7. Performs AMR detection on assembled data using one or more of:
-  - `ResFinder`
-  - `AMRFinderPlus`
-  - `CARD-RGI`
-  - `Abricate` and
-  - `ResFinder` on unassembled reads.
-8. Optionally performs `hAMRonization` to generate a comprehensive report integrating results from multiple AMR detection tools.
-9. Performs plasmid detection assembled data using:
-  - `PlasmidFinder`
-  - `PlasClass`
-10. Performs taxonomic classification using `Centrifuge` and `Kaiju`.
-11. Generates visualizations for Centrifuge and Kaiju results using `Krona`.
-12. Presents quality control and summary statistics for preprocessing, assembly, taxonomic classification, host-read removal, and AMR detection using ResFinder, AMRFinderPlus, CARD-RGI, and Abricate (`MultiQC`).
+- **Multi-tool AMR detection** — RGI (CARD), AMRFinderPlus, and ResFinder run in parallel; RGI and AMRFinderPlus results are integrated via hAMRonization
+- **Virulence factor detection** — Abricate (VFDB database); results are included in hAMRonization and shown separately in the Virulence tab
+- **Plasmid detection** — PlasmidFinder (replicon typing) + PlasClass (sequence composition)
+- **Dual taxonomic profiling** — Centrifuge (k-mer) and Kaiju (protein-level) with Krona visualisation
+- **Target species mode** — extract reads classified as specific organisms before AMR analysis
+- **Interactive HTML report** — integrated summary with AMR heatmap, VF categorisation, plasmid-taxonomy cross-reference, contig search
+- **Adaptive reporting** — report automatically adjusts based on which tools were run
+- **Fully optional steps** — every tool is opt-in via `--run_*` flags
 
+## Samplesheet format
 
-## Usage
-
-<!-- > [!NOTE]
-> If you are new to Nextflow and nf-core, please refer to [this page](https://nf-co.re/docs/usage/installation) on how to set-up Nextflow. Make sure to [test your setup](https://nf-co.re/docs/usage/introduction#how-to-run-a-pipeline) with `-profile test` before running the workflow on actual data. -->
-
-<!-- TODO nf-core: Describe the minimum required steps to execute the pipeline, e.g. how to prepare samplesheets.
-     Explain what rows and columns represent. For instance (please edit as appropriate):-->
-
-First, prepare a samplesheet with your input data that looks as follows:
-
-**`samplesheet.csv`**:
-
-|sample|fastq_1          |
-|------|-----------------|
-|sg17  |sample17.fastq.gz|
-|sg18  |sample18.fastq.gz|
-|sg19  |sample19.fastq.gz|
-
-Each row represents a fastq file (single-end).
-
-Additionally, you will need a database sheet that looks as follows:
-
-**`samplesheet.csv`**:
-
-|tool|db_name          |db_params|db_path                         |
-|----|-----------------|---------|--------------------------------|
-|kaiju|kaiju_db         |         |`/<path>/<to>/kaiju_db`           |
-|centrifuge|centrifuge_db    |         |`/<path>/<to>/centrifuge_database`|
-
-The db_path column should point to directories or .tar.gz archives containing the databases required for the selected tools. For Kaiju and Centrifuge, pre-existing databases must be provided. For other tools, you can either provide the database path, or the pipeline will automatically generate the required database if not supplied.
-
-> [!NOTE]
-> Abricate and PlasClass come with built-in databases, so no external database input is required for them.
-
-
-
-
-
-Now, you can run the pipeline using:
-```bash
-nextflow run ./main.nf \
-   -profile docker \
-   --input samplesheet.csv \
-   --databases database.csv \
-   --outdir results \
-   --perform_assembly \
-   --perform_polish_assembly \
-   --run_resfinder \
-   --download_resfinder_db \
+```csv
+sample,reads
+LH040,/path/to/LH040.fastq.gz
+LH085,/path/to/LH085.fastq.gz
 ```
 
-<!-- TODO nf-core: update the following command to include all required parameters for a minimal example -->
+> **Important:** The `sample` field must match the base name of the FASTQ file (without `.fastq.gz`) for consistent MultiQC naming.
 
-<!-- ```bash
-nextflow run nf-core/metaamrplus \
-   -profile <docker/singularity/.../institute> \
-   --input samplesheet.csv \
-   --outdir <OUTDIR>
-``` -->
+## Databases
 
-<!-- > [!WARNING]
-> Please provide pipeline parameters via the CLI or Nextflow `-params-file` option. Custom config files including those provided by the `-c` Nextflow option can be used to provide any configuration _**except for parameters**_; see [docs](https://nf-co.re/docs/usage/getting_started/configuration#custom-configuration-files).
+metaAMR-Plus uses several reference databases. These can be downloaded automatically by the pipeline or provided as pre-built local copies.
 
-For more details and further functionality, please refer to the [usage documentation](https://nf-co.re/metaamr/usage) and the [parameter documentation](https://nf-co.re/metaamr/parameters). -->
+### AMR databases
 
-## Pipeline output
+| Tool | Database | Auto-download flag | Notes |
+|---|---|---|---|
+| RGI | CARD | `--download_rgi_db` | Or provide via `databases.csv` |
+| AMRFinderPlus | NCBI AMRFinder | `--download_amrfinderplus_db` | Or provide via `databases.csv` |
+| ResFinder | ResFinder DB | `--download_resfinder_db` | Or provide via `databases.csv` |
 
-To see the results of an example test run with a full size dataset refer to the [results](https://nf-co.re/metaamr/results) tab on the nf-core website pipeline page.
+To save downloaded databases for reuse in future runs:
 
-For more details about the output files and reports, please refer to the
-[output documentation](https://nf-co.re/metaamr/output).
+```bash
+--save_databases
+```
+
+To use existing local databases (skip download), provide them all via the database.csv :
+
+```csv
+tool,db_name,db_params,db_path
+kaiju,kaiju_db,,/path/to/kaiju_db
+centrifuge,centrifuge_db,,/path/to/centrifuge_db
+rgi,rgi_db,,/path/to/rgi_db
+resfinder,resfinder_db,,/path/to/resfinder_db
+amrfinderplus,amrfinderplus_db,,/path/to/amrfinderplus_db
+```
+
+Pass it with `--databases databases.csv`. No download flags are needed when paths are provided in the database.csv.
+
+### Taxonomy and profiling databases
+
+Centrifuge and Kaiju databases are always provided via the database.csv (see above). These cannot be auto-downloaded and must be built or obtained separately before running the pipeline.
+
+### Built-in databases (no setup required)
+
+| Tool | Database | Notes |
+|---|---|---|
+| Abricate | VFDB | Bundled with Abricate container |
+| PlasmidFinder | PlasmidFinder DB | Bundled with PlasmidFinder container |
+| PlasClass | — | Model-based, no external DB needed |
+
+
+
+```csv
+tool,db_name,db_params,db_path
+kaiju,kaiju_db,,/path/to/kaiju_db
+centrifuge,centrifuge_db,,/path/to/centrifuge_db
+
+```
+
+## Target species mode
+
+To run analysis restricted to specific organisms:
+
+```bash
+nextflow run /path/to/metaAMR-Plus \
+    -profile singularity \
+    --input samplesheet.csv \
+    --outdir results_kleb \
+    --target_species "Klebsiella pneumoniae" \
+    --databases databases.csv \
+    --download_resfinder_db
+```
+
+Multiple species can be specified as a comma-separated string:
+
+```bash
+--target_species "Klebsiella pneumoniae,Enterococcus faecium"
+```
+
+## Output
+
+The main outputs are in `<outdir>/`:
+
+| Directory | Contents |
+|---|---|
+| `report/` | Interactive HTML report |
+| `multiqc/` | MultiQC quality report |
+| `assemblies/` | Raw assembly FASTA (Flye) |
+| `polished_assemblies/` | Polished assembly FASTA (Racon) |
+| `quast/` | Assembly quality statistics |
+| `resfinder/` | ResFinder AMR results |
+| `rgi/` | RGI (CARD) results |
+| `amrfinderplus/` | AMRFinderPlus results |
+| `abricate/` | Abricate VF results |
+| `hamronization/` | hAMRonization integrated summary |
+| `plasmidfinder/` | PlasmidFinder replicon results |
+| `plasclass/` | PlasClass contig classification |
+| `centrifuge/` | Centrifuge taxonomic profiles |
+| `kaiju/` | Kaiju taxonomic profiles |
+| `krona/` | Krona interactive visualisations |
+
+See [output documentation](docs/output.md) for full details.
 
 ## Credits
 
-**Meta-AMR-Plus** was originally written by Leila Nasirzadeh.
+metaAMR-Plus was developed at Clinical Genomics Linköping, Sweden. If you use this pipeline, please cite:
 
-We thank the following people for their contributions to the development of this pipeline: \
-  - [Jyotirmoy Das](https://github.com/JD2112) \
-  - [Debojyoti Das](https://github.com/BioDebojyoti)
-<!-- TODO nf-core: If applicable, make list of people who have also contributed -->
+> metaAMR-Plus: a Nextflow pipeline for comprehensive AMR analysis of Nanopore metagenomic data.
+> DOI: [10.5281/zenodo.15682600](https://doi.org/10.5281/zenodo.15682600)
 
-## Contributions and Support
+Please also cite the individual tools used. A full list is available in [CITATIONS.md](CITATIONS.md).
 
-<!-- If you would like to contribute to this pipeline, please see the [contributing guidelines](.github/CONTRIBUTING.md). -->
+## Contributions and support
 
-<!-- For further information or help, don't hesitate to get in touch on the [Slack `#metaamrplus` channel](https://nfcore.slack.com/channels/metaamr) (you can join with [this invite](https://nf-co.re/join/slack)). -->
-
-## Citations
-
-<!-- TODO nf-core: Add citation for pipeline after first release. Uncomment lines below and update Zenodo doi and badge at the top of this file. -->
-<!-- If you use nf-core/metaamrplus for your analysis, please cite it using the following doi: [10.5281/zenodo.XXXXXX](https://doi.org/10.5281/zenodo.XXXXXX) -->
-
-<!-- TODO nf-core: Add bibliography of tools and data used in your pipeline -->
-
-<!-- An extensive list of references for the tools used by the pipeline can be found in the [`CITATIONS.md`](CITATIONS.md) file.
-
-You can cite the `nf-core` publication as follows:
-
-> **The nf-core framework for community-curated bioinformatics pipelines.**
->
-> Philip Ewels, Alexander Peltzer, Sven Fillinger, Harshil Patel, Johannes Alneberg, Andreas Wilm, Maxime Ulysse Garcia, Paolo Di Tommaso & Sven Nahnsen.
->
-> _Nat Biotechnol._ 2020 Feb 13. doi: [10.1038/s41587-020-0439-x](https://dx.doi.org/10.1038/s41587-020-0439-x). -->
+If you encounter issues or have suggestions, please open a GitHub issue.
