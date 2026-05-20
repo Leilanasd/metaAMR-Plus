@@ -268,7 +268,7 @@ workflow METAAMR {
     //
     // MODULE: ResFinder
     //
-    if (params.run_resfinder) {
+    if (params.run_resfinder && !params.target_species) {
         // Select best available input: polished assembly > assembly > host-removed > trimmed reads
         ch_resfinder_input = params.perform_assembly    ? ch_validated_assemblies
                            : params.perform_hostremoval ? ch_hostremoved
@@ -409,7 +409,7 @@ workflow METAAMR {
     
 
     if (params.target_species && params.run_resfinder) {
-        log.warn "Both --target_species and --run_resfinder are set. Standard ResFinder will run on all reads (resfinder/). Target species ResFinder will run on filtered reads (target_species/amr_results/). Results may overlap. Report will show standard ResFinder output."
+        log.warn "--run_resfinder is ignored in --target_species mode. ResFinder runs automatically on extracted target species reads via TARGET_SPECIES_AMR."
     }
 
     if (params.target_species) {
