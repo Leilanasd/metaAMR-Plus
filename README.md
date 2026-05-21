@@ -193,7 +193,26 @@ See [output documentation](docs/output.md) for full details.
 
 ## Credits
 
-metaAMR-Plus was developed at Clinical Genomics Linköping, Sweden. If you use this pipeline, please cite:
+metaAMR-Plus was originally written by Leila Nasirzadeh and Jyotirmoy Das.
+
+### Team
+
+- [Leila Nasirzadeh](https://github.com/Leilanasd) — Department of Biomedical and Clinical Sciences, Linköping University
+- [Jyotirmoy Das](https://github.com/JD2112) — Department of Biomedical and Clinical Sciences, Linköping University
+
+We thank the following people for their contributions to the development of this pipeline:
+
+- Malgorzata Lysaik
+- Jenny Welander
+- Haiko Schurz
+- Ida Karlsson
+- Olivia Andersson
+- Samuel Lampa
+- Mårten Lindqvist
+
+### Citation
+
+If you use this pipeline, please cite:
 
 > metaAMR-Plus: a Nextflow pipeline for comprehensive AMR analysis of Nanopore metagenomic data.
 > DOI: [10.5281/zenodo.15682600](https://doi.org/10.5281/zenodo.15682600)
