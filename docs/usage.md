@@ -229,12 +229,22 @@ Recommended minimum resources per sample:
 For HPC submission, use `-profile singularity`.
 
 ## Resuming runs
-
 Nextflow caches completed processes. To resume an interrupted run:
 
 ```bash
 nextflow run /path/to/metaAMR-Plus [options] -resume
 ```
+
+> **Note:** `-resume` reuses cached process results but does **not** automatically regenerate the HTML report. To update the report after a resumed run, regenerate it manually:
+>
+> ```bash
+> python3 bin/generate_report.py \
+>     --results_dir <outdir> \
+>     --outdir <outdir>/report \
+>     --run_name "My run"
+> ```
+
+
 
 ## Running in the background
 
