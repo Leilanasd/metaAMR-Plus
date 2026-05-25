@@ -13,3 +13,7 @@ database*.csv
 assets/test_data/*.fastq.gz
 assets/test_data/*.fastq
 workflows/*.bak*
+# Allow test data exceptions
+!assets/test_data/samplesheet_test.csv
+!assets/test_data/database_test.csv
+!assets/test_data/ERR14204918.fastq.gz
