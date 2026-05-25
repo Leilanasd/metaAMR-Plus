@@ -11,7 +11,7 @@
 
 The pipeline supports two main modes:
 
-- **Standard mode** — full analysis with optional assembly, AMR detection, plasmid detection, and taxonomic profiling
+- **Standard mode** — full analysis with assembly, AMR detection, plasmid detection, and taxonomic profiling
 - **Target species mode** — extract and analyse reads from specific target organisms (e.g. known pathogens of interest)
 
 ## Pipeline overview
@@ -25,7 +25,7 @@ Input reads (Nanopore FASTQ)
     └── Host removal (Minimap2)
          │
          ├── [WITH ASSEMBLY]
-         │    ├── Assembly (Flye) → QC (QUAST) → Polishing (Racon)
+         │    ├── Assembly (Flye) → [Polishing (Racon) →] QC (QUAST)
          │    ├── AMR detection:        RGI · AMRFinderPlus · ResFinder
          │    ├── Virulence detection:  Abricate (VFDB)
          │    ├── AMR integration:      hAMRonization
@@ -44,7 +44,6 @@ Input reads (Nanopore FASTQ)
                    ▼
          MultiQC + Interactive HTML report
 ```
-
 ## Quick start
 
 1. Install [Nextflow](https://www.nextflow.io/docs/latest/getstarted.html) (≥24.04.2)
@@ -52,38 +51,56 @@ Input reads (Nanopore FASTQ)
 3. Prepare your samplesheet (see [usage](docs/usage.md))
 4. Run the pipeline:
 
+**Test installation**
+```bash
+nextflow run /path/to/metaAMR-Plus \
+    -profile test,singularity \
+    --outdir results_test
+```
+
+**Default run** (FastQC + ResFinder + Centrifuge + Krona + MultiQC + HTML report)
 ```bash
 nextflow run /path/to/metaAMR-Plus \
     -profile singularity \
     --input samplesheet.csv \
     --outdir results \
+    --databases database.csv
+```
+
+**Full run** (all tools enabled)
+```bash
+nextflow run /path/to/metaAMR-Plus \
+    -profile singularity \
+    --input samplesheet.csv \
+    --outdir results \
+    --databases database.csv \
+    --hostremoval_reference /path/to/host.fa \
     --perform_trim \
     --perform_hostremoval \
-    --hostremoval_reference /path/to/host.fa \
     --perform_assembly \
     --perform_polish_assembly \
-    --run_rgi --run_amrfinderplus --run_resfinder --run_abricate \
-    --run_hamronization \
-    --run_profiling --run_centrifuge --run_kaiju \
-    --run_plasmidfinder --run_plasclass \
-    --databases databases.csv \
+    --run_abricate \
+    --run_plasmidfinder \
+    --run_plasclass \
+    --run_rgi \
+    --run_amrfinderplus \
+    --run_kaiju \
     --download_rgi_db \
-    --download_resfinder_db \
     --download_amrfinderplus_db
 ```
 
-> If you have existing local databases, provide them in `databases.csv` instead of using the download flags.
+> If you have existing local databases, provide them in `database.csv` instead of using the download flags.
 
 ## Features
 
 - **Multi-tool AMR detection** — RGI (CARD), AMRFinderPlus, and ResFinder run in parallel; RGI and AMRFinderPlus results are integrated via hAMRonization
-- **Virulence factor detection** — Abricate (VFDB database); results are included in hAMRonization and shown separately in the Virulence tab
+- **Virulence factor detection** — Abricate (VFDB database); results are included in hAMRonization.
 - **Plasmid detection** — PlasmidFinder (replicon typing) + PlasClass (sequence composition)
 - **Dual taxonomic profiling** — Centrifuge (k-mer) and Kaiju (protein-level) with Krona visualisation
 - **Target species mode** — extract reads classified as specific organisms before AMR analysis
 - **Interactive HTML report** — integrated summary with AMR heatmap, VF categorisation, plasmid-taxonomy cross-reference, contig search
 - **Adaptive reporting** — report automatically adjusts based on which tools were run
-- **Fully optional steps** — every tool is opt-in via `--run_*` flags
+- **Flexible tool selection** — core tools run by default; enable assembly and assembly-based tools (RGI, AMRFinderPlus, PlasmidFinder, PlasClass) explicitly via `--perform_assembly` and `--run_*` flags
 
 ## Samplesheet format
 
@@ -103,9 +120,9 @@ metaAMR-Plus uses several reference databases. These can be downloaded automatic
 
 | Tool | Database | Auto-download flag | Notes |
 |---|---|---|---|
-| RGI | CARD | `--download_rgi_db` | Or provide via `databases.csv` |
-| AMRFinderPlus | NCBI AMRFinder | `--download_amrfinderplus_db` | Or provide via `databases.csv` |
-| ResFinder | ResFinder DB | `--download_resfinder_db` | Or provide via `databases.csv` |
+| RGI | CARD | `--download_rgi_db` | Or provide via `database.csv` |
+| AMRFinderPlus | NCBI AMRFinder | `--download_amrfinderplus_db` | Or provide via `database.csv` |
+| ResFinder | ResFinder DB | `--download_resfinder_db` | Or provide via `database.csv` |
 
 To save downloaded databases for reuse in future runs:
 
@@ -124,7 +141,7 @@ resfinder,resfinder_db,,/path/to/resfinder_db
 amrfinderplus,amrfinderplus_db,,/path/to/amrfinderplus_db
 ```
 
-Pass it with `--databases databases.csv`. No download flags are needed when paths are provided in the database.csv.
+Pass it with `--databases database.csv`. No download flags are needed when paths are provided in the database.csv.
 
 ### Taxonomy and profiling databases
 
@@ -140,13 +157,6 @@ Centrifuge and Kaiju databases are always provided via the database.csv (see abo
 
 
 
-```csv
-tool,db_name,db_params,db_path
-kaiju,kaiju_db,,/path/to/kaiju_db
-centrifuge,centrifuge_db,,/path/to/centrifuge_db
-
-```
-
 ## Target species mode
 
 To run analysis restricted to specific organisms:
@@ -157,7 +167,7 @@ nextflow run /path/to/metaAMR-Plus \
     --input samplesheet.csv \
     --outdir results_kleb \
     --target_species "Klebsiella pneumoniae" \
-    --databases databases.csv \
+    --databases database.csv \
     --download_resfinder_db
 ```
 

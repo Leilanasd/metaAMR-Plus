@@ -927,7 +927,7 @@ body{
     <div class="hdr-logo-icon">AMR</div>
     <div>
       <div class="hdr-title">metaAMR-Plus</div>
-      <div class="hdr-subtitle">RESEARCH REPORT · __RUN_DATE__ · metaAMR-Plus v__PIPELINE_VER__</div>
+      <div class="hdr-subtitle">RESEARCH REPORT · __RUN_NAME__ · __RUN_DATE__ · metaAMR-Plus v__PIPELINE_VER__</div>
     </div>
   </div>
   <div id="hdr-tools" style="display:flex;gap:6px;font-size:10px;align-items:center;
@@ -1994,6 +1994,7 @@ def generate_html(data):
 
     html = HTML_TEMPLATE
     html = html.replace("__RUN_DATE__",          data.get("run_date", ""))
+    html = html.replace("__RUN_NAME__",          data.get("run_name", "") or "")
     html = html.replace("__PIPELINE_VER__",      data.get("pipeline_ver", ""))
     html = html.replace("__N_SAMPLES__",         str(n_samples))
     html = html.replace("__N_AMR__",             str(n_amr))

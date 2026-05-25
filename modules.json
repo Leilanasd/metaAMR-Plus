@@ -1,6 +1,6 @@
 {
-    "name": "nf-core/metaamr",
-    "homePage": "https://github.com/nf-core/metaamr",
+    "name": "MetaAMR-Plus",
+    "homePage": "https://github.com/Clinical-Genomics-Linkoping/Meta-AMR-Plus",
     "repos": {
         "https://github.com/nf-core/modules.git": {
             "modules": {

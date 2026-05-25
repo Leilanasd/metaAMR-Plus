@@ -298,7 +298,7 @@
                 },
                 "run_hamronization": {
                     "type": "boolean",
-                    "default": false,
+                    "default": true,
                     "description": "Run Hamronization"
                 },
                 "arg_hamronization_format": {

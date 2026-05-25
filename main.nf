@@ -3,9 +3,9 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     metaAMR-Plus
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    Github : https://github.com/nf-core/metaamr
-    Website: https://nf-co.re/metaamr
-    Slack  : https://nfcore.slack.com/channels/metaamr
+    Github : https://github.com/Clinical-Genomics-Linkoping/Meta-AMR-Plus
+    Website: 
+    Slack  :
 ----------------------------------------------------------------------------------------
 */
 
