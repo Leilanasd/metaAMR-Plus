@@ -44,6 +44,17 @@ Input reads (Nanopore FASTQ)
                    ▼
          MultiQC + Interactive HTML report
 ```
+## Features
+
+- **Multi-tool AMR detection** — [RGI](https://github.com/arpcard/rgi) (CARD), [AMRFinderPlus](https://github.com/ncbi/amr), and [ResFinder](https://github.com/cadms/resfinder) run in parallel; RGI, AMRFinderPlus, and Abricate results are integrated via [hAMRonization](https://github.com/pha4ge/hAMRonization)
+- **Virulence factor detection** — [Abricate](https://github.com/tseemann/abricate) (VFDB database); results are included in hAMRonization
+- **Plasmid detection** — [PlasmidFinder](https://github.com/cadms/plasmidfinder) (replicon typing) + [PlasClass](https://github.com/Shamir-Lab/PlasClass) (sequence composition)
+- **Dual taxonomic profiling** — [Centrifuge](https://github.com/DaehwanKimLab/centrifuge) (k-mer) and [Kaiju](https://github.com/bioinformatics-centre/kaiju) (protein-level) with [Krona](https://github.com/marbl/Krona) visualisation
+- **Target species mode** — extract reads classified as specific organisms before AMR analysis
+- **Interactive HTML report** — integrated summary with AMR heatmap, VF categorisation, plasmid-taxonomy cross-reference, contig search
+- **Adaptive reporting** — report automatically adjusts based on which tools were run
+- **Flexible tool selection** — core tools run by default; enable assembly and assembly-based tools (RGI, AMRFinderPlus, PlasmidFinder, PlasClass) explicitly via `--perform_assembly` and `--run_*` flags
+
 ## Quick start
 
 1. Install [Nextflow](https://www.nextflow.io/docs/latest/getstarted.html) (≥24.04.2)
@@ -51,17 +62,17 @@ Input reads (Nanopore FASTQ)
 3. Prepare your samplesheet (see [usage](docs/usage.md))
 4. Run the pipeline:
 
-**Test installation**
+**Minimal run**
 ```bash
-nextflow run /path/to/metaAMR-Plus \
-    -profile test,singularity \
+nextflow run Leilanasd/metaAMR-Plus \
+    -profile <singularity/docker>
     --outdir results_test
 ```
 
 **Default run** (FastQC + ResFinder + Centrifuge + Krona + MultiQC + HTML report)
 ```bash
-nextflow run /path/to/metaAMR-Plus \
-    -profile singularity \
+nextflow run Leilanasd/metaAMR-Plus \
+    -profile <singularity/docker> \
     --input samplesheet.csv \
     --outdir results \
     --databases database.csv
@@ -69,8 +80,8 @@ nextflow run /path/to/metaAMR-Plus \
 
 **Full run** (all tools enabled)
 ```bash
-nextflow run /path/to/metaAMR-Plus \
-    -profile singularity \
+nextflow run Leilanasd/metaAMR-Plus \
+    -profile <singularity/docker> \
     --input samplesheet.csv \
     --outdir results \
     --databases database.csv \
@@ -91,22 +102,35 @@ nextflow run /path/to/metaAMR-Plus \
 
 > If you have existing local databases, provide them in `database.csv` instead of using the download flags.
 
-## Features
 
-- **Multi-tool AMR detection** — RGI (CARD), AMRFinderPlus, and ResFinder run in parallel; RGI and AMRFinderPlus results are integrated via hAMRonization
-- **Virulence factor detection** — Abricate (VFDB database); results are included in hAMRonization.
-- **Plasmid detection** — PlasmidFinder (replicon typing) + PlasClass (sequence composition)
-- **Dual taxonomic profiling** — Centrifuge (k-mer) and Kaiju (protein-level) with Krona visualisation
-- **Target species mode** — extract reads classified as specific organisms before AMR analysis
-- **Interactive HTML report** — integrated summary with AMR heatmap, VF categorisation, plasmid-taxonomy cross-reference, contig search
-- **Adaptive reporting** — report automatically adjusts based on which tools were run
-- **Flexible tool selection** — core tools run by default; enable assembly and assembly-based tools (RGI, AMRFinderPlus, PlasmidFinder, PlasClass) explicitly via `--perform_assembly` and `--run_*` flags
+## Target species mode
+
+To run analysis restricted to specific organisms:
+
+```bash
+nextflow run /path/to/metaAMR-Plus \
+    -profile <singularity/docker> \
+    --input samplesheet.csv \
+    --outdir results_kleb \
+    --target_species "Klebsiella pneumoniae" \
+    --databases database.csv \
+    --download_resfinder_db
+```
+
+Multiple species can be specified as a comma-separated string:
+
+```bash
+--target_species "Klebsiella pneumoniae,Enterococcus faecium"
+```
+
 
 ## Samplesheet format
 
 ```csv
 sample,reads
 LH040,/path/to/LH040.fastq.gz
+LH024,/path/to/LH024.fastq.gz
+LH077,/path/to/LH077.fastq.gz
 LH085,/path/to/LH085.fastq.gz
 ```
 
@@ -156,26 +180,6 @@ Centrifuge and Kaiju databases are always provided via the database.csv (see abo
 | PlasClass | — | Model-based, no external DB needed |
 
 
-
-## Target species mode
-
-To run analysis restricted to specific organisms:
-
-```bash
-nextflow run /path/to/metaAMR-Plus \
-    -profile singularity \
-    --input samplesheet.csv \
-    --outdir results_kleb \
-    --target_species "Klebsiella pneumoniae" \
-    --databases database.csv \
-    --download_resfinder_db
-```
-
-Multiple species can be specified as a comma-separated string:
-
-```bash
---target_species "Klebsiella pneumoniae,Enterococcus faecium"
-```
 
 ## Output
 
@@ -228,6 +232,11 @@ If you use this pipeline, please cite:
 > DOI: [10.5281/zenodo.15682600](https://doi.org/10.5281/zenodo.15682600)
 
 Please also cite the individual tools used. A full list is available in [CITATIONS.md](CITATIONS.md).
+
+## Acknowledgements
+This pipeline was developed at the Bioinformatics Core Facility, Faculty of Medicine and Health Sciences, and Clinical Genomics Linköping, SciLifeLab. 
+We are also grateful to LiU-IT (DIGIT) for their support on Fraka (HPC) during development and testing of metaAMR-Plus.
+
 
 ## Contributions and support
 
