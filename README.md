@@ -234,7 +234,7 @@ If you use this pipeline, please cite:
 Please also cite the individual tools used. A full list is available in [CITATIONS.md](CITATIONS.md).
 
 ## Acknowledgements
-This pipeline was developed at the Bioinformatics Core Facility, Faculty of Medicine and Health Sciences, and Clinical Genomics Linköping, SciLifeLab. 
+This pipeline was developed at the Bioinformatics Core Facility, Faculty of Medicine and Health Sciences,Linköping University, and Clinical Genomics Linköping, SciLifeLab. 
 We are also grateful to LiU-IT (DIGIT) for their support on Fraka (HPC) during development and testing of metaAMR-Plus.
 
 
