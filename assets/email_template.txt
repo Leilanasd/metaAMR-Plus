@@ -4,15 +4,15 @@
   |\\ | |__  __ /  ` /  \\ |__) |__         }  {
   | \\| |       \\__, \\__/ |  \\ |___     \\`-._,-`-,
                                         `._,._,'
-  nf-core/metaamrplus ${version}
+  metaAMR-Plus ${version}
 ----------------------------------------------------
 Run Name: $runName
 
 <% if (success){
-    out << "## nf-core/metaamrplus execution completed successfully! ##"
+    out << "## metaAMR-Plus execution completed successfully! ##"
 } else {
     out << """####################################################
-## nf-core/metaamrplus execution completed unsuccessfully! ##
+## metaAMR-Plus execution completed unsuccessfully! ##
 ####################################################
 The exit status of the task that caused the workflow execution to fail was: $exitStatus.
 The full error message was:
@@ -35,5 +35,5 @@ Pipeline Configuration:
 <% out << summary.collect{ k,v -> " - $k: $v" }.join("\n") %>
 
 --
-nf-core/metaamrplus
-https://github.com/nf-core/metaamrplus
+metaAMR-Plus
+https://github.com/metaAMR-Plus

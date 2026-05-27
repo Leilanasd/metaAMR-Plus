@@ -1,11 +1,11 @@
-# nf-core/metaamrplus: Changelog
+# metaAMR-Plus: Changelog
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## v1.0.0dev - [2026-04-29]
 
-Initial release of nf-core/metaamrplus, created with the [nf-core](https://nf-co.re/) template.
+Initial release of metaAMR-Plus, created with the [nf-core](https://nf-co.re/) template.
 
 - Nanopore metagenomics AMR detection pipeline with standard assembly-based and target-species read-based modes
 - Trimming and quality filtering with Porechop_ABI and Filtlong

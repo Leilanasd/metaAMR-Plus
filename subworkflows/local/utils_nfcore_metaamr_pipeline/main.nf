@@ -1,5 +1,5 @@
 //
-// Subworkflow with functionality specific to the nf-core/metaamr pipeline
+// Subworkflow with functionality specific to the metaAMR-Plus pipeline
 //
 
 /*

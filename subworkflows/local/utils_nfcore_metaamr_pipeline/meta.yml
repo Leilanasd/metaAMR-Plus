@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
 name: "utils_nfcore_metaamrplus_pipeline"
-description: Subworkflow with utility functions specific to the nf-core/metaamrplus pipeline
+description: Subworkflow with utility functions specific to the metaAMR-Plus pipeline
 keywords:
   - utility
   - pipeline
