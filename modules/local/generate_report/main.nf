@@ -10,7 +10,7 @@ process GENERATE_REPORT {
     publishDir "${params.outdir}/report", mode: params.publish_dir_mode, overwrite: true
 
     input:
-    val  results_dir
+    path results_dir
     val  run_name
 
     output:

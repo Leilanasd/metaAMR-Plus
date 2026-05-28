@@ -484,7 +484,7 @@ workflow METAAMR {
     //
 
     GENERATE_REPORT(
-        MULTIQC.out.report.map { meta, report -> file(params.outdir).toAbsolutePath().toString() },
+        MULTIQC.out.report.map { meta, report -> file(params.outdir).toAbsolutePath() },
         params.run_name ?: workflow.runName
     )
 
