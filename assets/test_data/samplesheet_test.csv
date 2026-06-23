@@ -1,2 +1,2 @@
 sample,reads
-sample-ERR14204918,assets/test_data/ERR14204918.fastq.gz
+sample-ERR14204918,https://raw.githubusercontent.com/Leilanasd/metaAMR-Plus/main/assets/test_data/ERR14204918.fastq.gz
