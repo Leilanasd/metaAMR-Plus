@@ -3,7 +3,18 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## v1.0.0dev - [2026-04-29]
+## 1.0.0 - [2026-04-29]
+
+- comprehensive AMR analysis of long-read Oxford Nanopore metagenomic data
+- multi-tool AMR detection (RGI, AMRFinderPlus, ResFinder) with results integrated via hAMRonization
+- virulence factor detection using Abricate (VFDB database)
+- plasmid detection combining replicon typing (PlasmidFinder) and sequence composition (PlasClass)
+- dual taxonomic profiling with Centrifuge and Kaiju, visualised via Krona
+- target species mode, extract and analyse reads from specific organisms of interest
+- fully containerised with Singularity and Docker support
+- single interactive HTML report integrating all results, adaptable based on tools run
+
+## 0.1.0patch - [2026-04-29]
 
 Initial release of metaAMR-Plus, created with the [nf-core](https://nf-co.re/) template.
 
@@ -46,3 +57,12 @@ Initial release of metaAMR-Plus, created with the [nf-core](https://nf-co.re/) t
 | MultiQC | 1.25.1 |
 
 ### `Deprecated`
+
+## 0.1.0 - [2025-06-17]
+
+- working with QC, adapter trimming, quality filtering, AMR detection
+- plasmid detection
+- taxonomy classification
+- Krona plot
+- Summary Report
+- Targeted species detection
