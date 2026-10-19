@@ -5,7 +5,7 @@ process VALIDATE_FASTA {
     conda "conda-forge::bash=5.2"
     container "${ workflow.containerEngine == 'singularity' ?
         'https://depot.galaxyproject.org/singularity/ubuntu:20.04' :
-        'ubuntu:20.04' }"
+        'docker.io/library/ubuntu:20.04' }"
 
     input:
     tuple val(meta), path(fasta)
